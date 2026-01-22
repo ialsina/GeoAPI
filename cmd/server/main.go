@@ -28,6 +28,7 @@ func main() {
 	r.Use(middleware.Recoverer)
 
 	r.Get("/city", cityHandler.GetCity)
+	r.Get("/cities", cityHandler.SearchCities)
 	r.Get("/boundary", boundaryHandler.GetBoundary)
 
 	log.Println("Listening on :8080")
