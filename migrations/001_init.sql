@@ -5,6 +5,8 @@ CREATE TABLE cities_1000 (
     name TEXT,
     country_code TEXT,
     population BIGINT,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
     geom GEOMETRY(Point, 4326)
 );
 
