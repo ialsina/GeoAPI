@@ -28,8 +28,7 @@ func main() {
 	r.Use(middleware.Recoverer)
 
 	r.Get("/city", cityHandler.GetCity)
-	r.Get("/boundary/by-point", boundaryHandler.ByPoint)
-	r.Get("/boundary/by-city", boundaryHandler.ByCity)
+	r.Get("/boundary", boundaryHandler.GetBoundary)
 
 	log.Println("Listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", r))

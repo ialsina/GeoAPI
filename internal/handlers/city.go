@@ -20,14 +20,18 @@ func (h *CityHandler) GetCity(w http.ResponseWriter, r *http.Request) {
 
 	geonameid := r.URL.Query().Get("geonameid")
 	name := r.URL.Query().Get("name")
-	country := r.URL.Query().Get("country")
+	countryCode := r.URL.Query().Get("country_code")
 
 	var city models.City
 	var err error
 
 	switch {
 	case geonameid != "":
-		id, _ := strconv.ParseInt(geonameid, 10, 64)
+		id, parseErr := strconv.ParseInt(geonameid, 10, 64)
+		if parseErr != nil {
+			http.Error(w, "Invalid 'geonameid' parameter", http.StatusBadRequest)
+			return
+		}
 		err = h.DB.QueryRow(ctx, `
 			SELECT geonameid, name, country_code, population,
 			       ST_Y(geom), ST_X(geom)
@@ -42,25 +46,45 @@ func (h *CityHandler) GetCity(w http.ResponseWriter, r *http.Request) {
 			&city.Longitude,
 		)
 
-	case name != "" && country != "":
-		err = h.DB.QueryRow(ctx, `
-			SELECT geonameid, name, country_code, population,
-			       ST_Y(geom), ST_X(geom)
-			FROM cities_1000
-			WHERE name = $1 AND country_code = $2
-			ORDER BY population DESC
-			LIMIT 1
-		`, name, country).Scan(
-			&city.GeonameID,
-			&city.Name,
-			&city.Country,
-			&city.Population,
-			&city.Latitude,
-			&city.Longitude,
-		)
+	case name != "":
+		if countryCode != "" {
+			// Search by name and country_code
+			err = h.DB.QueryRow(ctx, `
+				SELECT geonameid, name, country_code, population,
+				       ST_Y(geom), ST_X(geom)
+				FROM cities_1000
+				WHERE name = $1 AND country_code = $2
+				ORDER BY population DESC
+				LIMIT 1
+			`, name, countryCode).Scan(
+				&city.GeonameID,
+				&city.Name,
+				&city.Country,
+				&city.Population,
+				&city.Latitude,
+				&city.Longitude,
+			)
+		} else {
+			// Search by name only
+			err = h.DB.QueryRow(ctx, `
+				SELECT geonameid, name, country_code, population,
+				       ST_Y(geom), ST_X(geom)
+				FROM cities_1000
+				WHERE name = $1
+				ORDER BY population DESC
+				LIMIT 1
+			`, name).Scan(
+				&city.GeonameID,
+				&city.Name,
+				&city.Country,
+				&city.Population,
+				&city.Latitude,
+				&city.Longitude,
+			)
+		}
 
 	default:
-		http.Error(w, "Invalid query", http.StatusBadRequest)
+		http.Error(w, "Either 'geonameid' or 'name' parameter is required", http.StatusBadRequest)
 		return
 	}
 
