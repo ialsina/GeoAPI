@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgis/postgis:15-3.4
+    container_name: city-db
+    environment:
+      POSTGRES_DB: geodb
+      POSTGRES_USER: geouser
+      POSTGRES_PASSWORD: geopass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  api:
+    build: .
+    container_name: city-api
+    environment:
+      DATABASE_URL: postgres://geouser:geopass@db:5432/geodb
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
+
