@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -19,7 +20,7 @@ func (h *BoundaryHandler) findBoundaryByPoint(ctx context.Context, lat, lon floa
 	var geojson string
 
 	err := h.DB.QueryRow(ctx, `
-		SELECT shape_name, ST_AsGeoJSON(geom)
+		SELECT shapename, ST_AsGeoJSON(geom)
 		FROM adm2_boundaries
 		WHERE ST_Contains(
 			geom,
@@ -56,6 +57,7 @@ func (h *BoundaryHandler) ByPoint(w http.ResponseWriter, r *http.Request) {
 func (h *BoundaryHandler) ByCity(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 
+	// r.URL.Query().Get() already decodes URL-encoded parameters automatically
 	name := r.URL.Query().Get("name")
 	country := r.URL.Query().Get("country")
 
@@ -75,6 +77,7 @@ func (h *BoundaryHandler) ByCity(w http.ResponseWriter, r *http.Request) {
 	`, name, country).Scan(&lat, &lon)
 
 	if err != nil {
+		log.Printf("Error finding city '%s' in country '%s': %v", name, country, err)
 		http.Error(w, "City not found", http.StatusNotFound)
 		return
 	}
@@ -82,6 +85,7 @@ func (h *BoundaryHandler) ByCity(w http.ResponseWriter, r *http.Request) {
 	// Then, find the boundary using the city's coordinates
 	boundaryName, geojson, err := h.findBoundaryByPoint(ctx, lat, lon)
 	if err != nil {
+		log.Printf("Error finding boundary for point (%.6f, %.6f): %v", lat, lon, err)
 		http.Error(w, "Boundary not found for this location", http.StatusNotFound)
 		return
 	}
