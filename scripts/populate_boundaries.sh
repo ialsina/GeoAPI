@@ -1,31 +1,49 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-# Populates adm2_boundaries table from geoBoundaries GeoJSON
-# Works with data/ one level above scripts/
-
+# ============================
+# Configuration
+# ============================
 DB_HOST="db"
 DB_NAME="geodb"
 DB_USER="geouser"
 DB_PASS="geopass"
 DOCKER_NETWORK="city-api_default"
-GEOJSON_PATH="/data/geoBoundaries/geoBoundariesCGAZ_ADM2.geojson"
 
+# Path inside the Docker volume (data/ mounted to /data)
+GEOJSON_FILE="/data/geoBoundaries/geoBoundariesCGAZ_ADM2.geojson"
+
+# ============================
+# Helper function
+# ============================
+function check_file_exists() {
+  local file="$1"
+  if [[ ! -f "$file" ]]; then
+    echo "ERROR: File not found: $file"
+    exit 1
+  fi
+}
+
+# ============================
+# Populate adm2_boundaries
+# ============================
 echo "Populating adm2_boundaries..."
 
 docker run --rm \
-  --network $DOCKER_NETWORK \
-  -v "$(dirname "$PWD")/data:/data:ro" \
-  -e PGUSER=$DB_USER \
-  -e PGPASSWORD=$DB_PASS \
+  --network "$DOCKER_NETWORK" \
+  -v "$(realpath ../data):/data:ro" \
+  -e PGUSER="$DB_USER" \
+  -e PGPASSWORD="$DB_PASS" \
   ghcr.io/osgeo/gdal:alpine-small-3.8.4 \
   ogr2ogr \
   -f PostgreSQL \
   PG:"dbname=$DB_NAME user=$DB_USER password=$DB_PASS host=$DB_HOST" \
-  /data/geoBoundaries/geoBoundariesCGAZ_ADM2.geojson \
+  "$GEOJSON_FILE" \
   -nln adm2_boundaries \
   -lco GEOMETRY_NAME=geom \
   -nlt MULTIPOLYGON \
-  -a_srs "EPSG:4326"
+  -a_srs "EPSG:4326" \
+  -overwrite \
+  -select shapeID,shapeName,shapeGroup,shapeType
 
-echo "adm2_boundaries populated."
+echo "adm2_boundaries populated successfully!"
