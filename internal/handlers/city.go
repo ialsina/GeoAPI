@@ -34,13 +34,14 @@ func (h *CityHandler) GetCity(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		err = h.DB.QueryRow(ctx, `
-			SELECT geonameid, name, country_code, population,
+			SELECT geonameid, name, asciiname, country_code, population,
 			       ST_Y(geom), ST_X(geom)
 			FROM cities_1000
 			WHERE geonameid = $1
 		`, id).Scan(
 			&city.GeonameID,
 			&city.Name,
+			&city.AsciiName,
 			&city.Country,
 			&city.Population,
 			&city.Latitude,
@@ -51,7 +52,7 @@ func (h *CityHandler) GetCity(w http.ResponseWriter, r *http.Request) {
 		if countryCode != "" {
 			// Search by name and country_code
 			err = h.DB.QueryRow(ctx, `
-				SELECT geonameid, name, country_code, population,
+				SELECT geonameid, name, asciiname, country_code, population,
 				       ST_Y(geom), ST_X(geom)
 				FROM cities_1000
 				WHERE name = $1 AND country_code = $2
@@ -60,6 +61,7 @@ func (h *CityHandler) GetCity(w http.ResponseWriter, r *http.Request) {
 			`, name, countryCode).Scan(
 				&city.GeonameID,
 				&city.Name,
+				&city.AsciiName,
 				&city.Country,
 				&city.Population,
 				&city.Latitude,
@@ -68,7 +70,7 @@ func (h *CityHandler) GetCity(w http.ResponseWriter, r *http.Request) {
 		} else {
 			// Search by name only
 			err = h.DB.QueryRow(ctx, `
-				SELECT geonameid, name, country_code, population,
+				SELECT geonameid, name, asciiname, country_code, population,
 				       ST_Y(geom), ST_X(geom)
 				FROM cities_1000
 				WHERE name = $1
@@ -77,6 +79,7 @@ func (h *CityHandler) GetCity(w http.ResponseWriter, r *http.Request) {
 			`, name).Scan(
 				&city.GeonameID,
 				&city.Name,
+				&city.AsciiName,
 				&city.Country,
 				&city.Population,
 				&city.Latitude,
@@ -135,7 +138,7 @@ func (h *CityHandler) SearchCities(w http.ResponseWriter, r *http.Request) {
 	// Build query based on whether country_code is provided
 	if countryCode != "" {
 		rows, err = h.DB.Query(ctx, `
-			SELECT geonameid, name, country_code, population,
+			SELECT geonameid, name, asciiname, country_code, population,
 			       ST_Y(geom), ST_X(geom)
 			FROM cities_1000
 			WHERE name ILIKE $1 AND country_code = $2
@@ -144,7 +147,7 @@ func (h *CityHandler) SearchCities(w http.ResponseWriter, r *http.Request) {
 		`, "%"+name+"%", countryCode, limit)
 	} else {
 		rows, err = h.DB.Query(ctx, `
-			SELECT geonameid, name, country_code, population,
+			SELECT geonameid, name, asciiname, country_code, population,
 			       ST_Y(geom), ST_X(geom)
 			FROM cities_1000
 			WHERE name ILIKE $1
@@ -165,6 +168,7 @@ func (h *CityHandler) SearchCities(w http.ResponseWriter, r *http.Request) {
 		err := rows.Scan(
 			&city.GeonameID,
 			&city.Name,
+			&city.AsciiName,
 			&city.Country,
 			&city.Population,
 			&city.Latitude,

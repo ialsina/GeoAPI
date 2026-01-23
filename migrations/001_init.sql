@@ -3,6 +3,7 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE TABLE cities_1000 (
     geonameid BIGINT PRIMARY KEY,
     name TEXT,
+    asciiname TEXT,
     country_code TEXT,
     population BIGINT,
     latitude DOUBLE PRECISION,
