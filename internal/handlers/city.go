@@ -16,6 +16,19 @@ type CityHandler struct {
 	DB *pgxpool.Pool
 }
 
+// GetCity godoc
+// @Summary      Get a city by ID or name
+// @Description  Retrieve a single city by geonameid, or by name (optionally with country_code)
+// @Tags         cities
+// @Accept       json
+// @Produce      json
+// @Param        geonameid   query     int     false  "Geoname ID of the city"
+// @Param        name        query     string  false  "Name of the city"
+// @Param        country_code query    string  false  "Country code (ISO 2-letter), required if searching by name"
+// @Success      200         {object}  models.City
+// @Failure      400         {string}  string  "Bad Request - Invalid parameters"
+// @Failure      404         {string}  string  "Not Found - City not found"
+// @Router       /city [get]
 func (h *CityHandler) GetCity(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 
@@ -100,12 +113,20 @@ func (h *CityHandler) GetCity(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, city)
 }
 
-// SearchCities searches for cities by name using fuzzy matching (trigram similarity)
-// Query parameters:
-//   - name (required): city name to search for (fuzzy match)
-//   - country_code (optional): filter by country code
-//   - limit (optional): maximum number of results (default: 50, max: 200)
-//   - threshold (optional): minimum similarity threshold (default: 0.2, range: 0.0-1.0)
+// SearchCities godoc
+// @Summary      Search cities by name
+// @Description  Search for cities by name using fuzzy matching (trigram similarity). Returns a list of matching cities ordered by similarity and population.
+// @Tags         cities
+// @Accept       json
+// @Produce      json
+// @Param        name          query     string  true   "City name to search for (fuzzy match)"
+// @Param        country_code  query     string  false  "Filter by country code (ISO 2-letter)"
+// @Param        limit         query     int     false  "Maximum number of results (default: 50, max: 200)"
+// @Param        threshold     query     number  false  "Minimum similarity threshold (default: 0.2, range: 0.0-1.0)"
+// @Success      200           {object}  map[string]interface{}  "Response with cities array and count"
+// @Failure      400           {string}  string  "Bad Request - Invalid parameters"
+// @Failure      500           {string}  string  "Internal Server Error"
+// @Router       /cities [get]
 func (h *CityHandler) SearchCities(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	query := r.URL.Query()

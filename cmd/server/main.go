@@ -7,10 +7,30 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	httpSwagger "github.com/swaggo/http-swagger"
 
 	"city-api/internal/db"
 	"city-api/internal/handlers"
+
+	_ "city-api/docs" // Swagger docs
 )
+
+// @title           City API
+// @version         1.0
+// @description     API for querying cities and administrative boundaries
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   API Support
+// @contact.url    http://www.swagger.io/support
+// @contact.email  support@swagger.io
+
+// @license.name  Apache 2.0
+// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host      localhost:8080
+// @BasePath  /
+
+// @schemes   http
 
 func main() {
 	dsn := os.Getenv("DATABASE_URL")
@@ -30,6 +50,9 @@ func main() {
 	r.Get("/city", cityHandler.GetCity)
 	r.Get("/cities", cityHandler.SearchCities)
 	r.Get("/boundary", boundaryHandler.GetBoundary)
+
+	// Swagger documentation
+	r.Get("/swagger/*", httpSwagger.Handler())
 
 	log.Println("Listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", r))

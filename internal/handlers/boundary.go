@@ -102,10 +102,20 @@ func (h *BoundaryHandler) ByCity(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetBoundary is a unified endpoint that handles both point-based and city-based boundary lookups
-// It decides which method to use based on the query parameters:
-// - If lat and lon are provided, uses point-based lookup
-// - If city and country_code are provided, uses city-based lookup
+// GetBoundary godoc
+// @Summary      Get administrative boundary
+// @Description  Get an administrative boundary (ADM2) by coordinates or by city name. Returns the boundary name and GeoJSON geometry.
+// @Tags         boundaries
+// @Accept       json
+// @Produce      json
+// @Param        lat           query     number  false  "Latitude (required if using point-based lookup)"
+// @Param        lon           query     number  false  "Longitude (required if using point-based lookup)"
+// @Param        city          query     string  false  "City name (required if using city-based lookup)"
+// @Param        country_code  query     string  false  "Country code (ISO 2-letter, required if using city-based lookup)"
+// @Success      200           {object}  map[string]interface{}  "Response with boundary name and GeoJSON geometry"
+// @Failure      400           {string}  string  "Bad Request - Invalid or missing parameters"
+// @Failure      404           {string}  string  "Not Found - Boundary or city not found"
+// @Router       /boundary [get]
 func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	query := r.URL.Query()

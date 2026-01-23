@@ -14,6 +14,9 @@ RUN apt-get update && \
 # Go proxy for reliable module downloads
 ENV GOPROXY=https://proxy.golang.org,direct
 
+# Install swag for Swagger documentation generation (matching library version)
+RUN go install github.com/swaggo/swag/cmd/swag@v1.8.1
+
 # Copy mod files first for caching
 COPY go.mod go.sum ./
 
@@ -22,6 +25,9 @@ RUN go mod download
 
 # Copy source
 COPY . .
+
+# Generate Swagger documentation
+RUN swag init -g cmd/server/main.go -o docs
 
 # Build static binary
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
@@ -34,8 +40,9 @@ FROM gcr.io/distroless/base-debian12
 
 WORKDIR /app
 
-# Copy binary from builder
+# Copy binary and Swagger docs from builder
 COPY --from=builder /app/city-api /app/city-api
+COPY --from=builder /app/docs /app/docs
 
 EXPOSE 8080
 
