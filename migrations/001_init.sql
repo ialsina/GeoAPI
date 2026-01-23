@@ -1,4 +1,5 @@
 CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE TABLE cities_1000 (
     geonameid BIGINT PRIMARY KEY,
@@ -19,5 +20,7 @@ CREATE TABLE adm2_boundaries (
 );
 
 CREATE INDEX cities_geom_idx ON cities_1000 USING GIST (geom);
+CREATE INDEX cities_name_trgm_idx ON cities_1000 USING GIN (name gin_trgm_ops);
+CREATE INDEX cities_asciiname_trgm_idx ON cities_1000 USING GIN (asciiname gin_trgm_ops);
 CREATE INDEX adm2_geom_idx ON adm2_boundaries USING GIST (geom);
 

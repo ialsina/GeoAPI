@@ -100,11 +100,12 @@ func (h *CityHandler) GetCity(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, city)
 }
 
-// SearchCities searches for cities by name (partial match, case-insensitive)
+// SearchCities searches for cities by name using fuzzy matching (trigram similarity)
 // Query parameters:
-//   - name (required): partial city name to search for
+//   - name (required): city name to search for (fuzzy match)
 //   - country_code (optional): filter by country code
 //   - limit (optional): maximum number of results (default: 50, max: 200)
+//   - threshold (optional): minimum similarity threshold (default: 0.2, range: 0.0-1.0)
 func (h *CityHandler) SearchCities(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	query := r.URL.Query()
@@ -117,6 +118,7 @@ func (h *CityHandler) SearchCities(w http.ResponseWriter, r *http.Request) {
 
 	countryCode := query.Get("country_code")
 	limitStr := query.Get("limit")
+	thresholdStr := query.Get("threshold")
 
 	// Parse limit with defaults
 	limit := 50
@@ -132,28 +134,53 @@ func (h *CityHandler) SearchCities(w http.ResponseWriter, r *http.Request) {
 		limit = parsedLimit
 	}
 
+	// Parse similarity threshold (default: 0.2)
+	threshold := 0.2
+	if thresholdStr != "" {
+		parsedThreshold, err := strconv.ParseFloat(thresholdStr, 64)
+		if err != nil || parsedThreshold < 0.0 || parsedThreshold > 1.0 {
+			http.Error(w, "Invalid 'threshold' parameter (must be a float between 0.0 and 1.0)", http.StatusBadRequest)
+			return
+		}
+		threshold = parsedThreshold
+	}
+
 	var rows pgx.Rows
 	var err error
 
-	// Build query based on whether country_code is provided
+	// Build query using fuzzy matching with trigram similarity
+	// Search both name and asciiname, order by best similarity match first, then by population
 	if countryCode != "" {
 		rows, err = h.DB.Query(ctx, `
 			SELECT geonameid, name, asciiname, country_code, population,
-			       ST_Y(geom), ST_X(geom)
+			       ST_Y(geom), ST_X(geom),
+			       GREATEST(
+			           similarity(name, $1),
+			           similarity(asciiname, $1)
+			       ) AS sim
 			FROM cities_1000
-			WHERE name ILIKE $1 AND country_code = $2
-			ORDER BY population DESC
-			LIMIT $3
-		`, "%"+name+"%", countryCode, limit)
+			WHERE country_code = $2
+			  AND (
+			       similarity(name, $1) >= $3
+			    OR similarity(asciiname, $1) >= $3
+			  )
+			ORDER BY sim DESC, population DESC
+			LIMIT $4
+		`, name, countryCode, threshold, limit)
 	} else {
 		rows, err = h.DB.Query(ctx, `
 			SELECT geonameid, name, asciiname, country_code, population,
-			       ST_Y(geom), ST_X(geom)
+			       ST_Y(geom), ST_X(geom),
+			       GREATEST(
+			           similarity(name, $1),
+			           similarity(asciiname, $1)
+			       ) AS sim
 			FROM cities_1000
-			WHERE name ILIKE $1
-			ORDER BY population DESC
-			LIMIT $2
-		`, "%"+name+"%", limit)
+			WHERE similarity(name, $1) >= $2
+			   OR similarity(asciiname, $1) >= $2
+			ORDER BY sim DESC, population DESC
+			LIMIT $3
+		`, name, threshold, limit)
 	}
 
 	if err != nil {
@@ -165,6 +192,7 @@ func (h *CityHandler) SearchCities(w http.ResponseWriter, r *http.Request) {
 	var cities []models.City
 	for rows.Next() {
 		var city models.City
+		var similarity float64 // Temporary variable to hold similarity score
 		err := rows.Scan(
 			&city.GeonameID,
 			&city.Name,
@@ -173,6 +201,7 @@ func (h *CityHandler) SearchCities(w http.ResponseWriter, r *http.Request) {
 			&city.Population,
 			&city.Latitude,
 			&city.Longitude,
+			&similarity, // Scan similarity score but don't use it
 		)
 		if err != nil {
 			http.Error(w, "Error reading city data", http.StatusInternalServerError)
