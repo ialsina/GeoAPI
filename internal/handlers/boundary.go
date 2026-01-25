@@ -104,28 +104,111 @@ func (h *BoundaryHandler) ByCity(w http.ResponseWriter, r *http.Request) {
 
 // GetBoundary godoc
 // @Summary      Get administrative boundary
-// @Description  Get an administrative boundary (ADM2) by coordinates or by city name. Returns the boundary name and GeoJSON geometry.
+// @Description  Get an administrative boundary (ADM2) by geonameid, by city name and country code, or by coordinates. Returns the boundary name and GeoJSON geometry. If multiple parameter groups are provided, precedence is: geonameid > name+country_code > lat+lon.
 // @Tags         boundaries
 // @Accept       json
 // @Produce      json
-// @Param        lat           query     number  false  "Latitude (required if using point-based lookup)"
-// @Param        lon           query     number  false  "Longitude (required if using point-based lookup)"
-// @Param        city          query     string  false  "City name (required if using city-based lookup)"
-// @Param        country_code  query     string  false  "Country code (ISO 2-letter, required if using city-based lookup)"
-// @Success      200           {object}  map[string]interface{}  "Response with boundary name and GeoJSON geometry"
-// @Failure      400           {string}  string  "Bad Request - Invalid or missing parameters"
-// @Failure      404           {string}  string  "Not Found - Boundary or city not found"
+// @Param        geonameid    query     int     false  "Geoname ID of the city (highest priority)"
+// @Param        name         query     string  false  "City name (required with country_code for city-based lookup)"
+// @Param        country_code query     string  false  "Country code (ISO 2-letter, required with name for city-based lookup)"
+// @Param        lat          query     number  false  "Latitude (required with lon for point-based lookup)"
+// @Param        lon          query     number  false  "Longitude (required with lat for point-based lookup)"
+// @Success      200          {object}  map[string]interface{}  "Response with boundary name and GeoJSON geometry"
+// @Failure      400          {string}  string  "Bad Request - Invalid or missing parameters"
+// @Failure      404          {string}  string  "Not Found - Boundary or city not found"
 // @Router       /boundary [get]
 func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	query := r.URL.Query()
 
+	geonameidStr := query.Get("geonameid")
+	name := query.Get("name")
+	countryCode := query.Get("country_code")
 	latStr := query.Get("lat")
 	lonStr := query.Get("lon")
-	city := query.Get("city")
-	countryCode := query.Get("country_code")
 
-	// Check if point-based lookup is requested
+	// Priority 1: Check if geonameid-based lookup is requested
+	if geonameidStr != "" {
+		geonameid, err := strconv.ParseInt(geonameidStr, 10, 64)
+		if err != nil {
+			http.Error(w, "Invalid 'geonameid' parameter", http.StatusBadRequest)
+			return
+		}
+
+		// First, find the city by geonameid to get its coordinates
+		var lat, lon float64
+		err = h.DB.QueryRow(ctx, `
+			SELECT ST_Y(geom), ST_X(geom)
+			FROM cities_1000
+			WHERE geonameid = $1
+		`, geonameid).Scan(&lat, &lon)
+
+		if err != nil {
+			log.Printf("Error finding city with geonameid '%d': %v", geonameid, err)
+			http.Error(w, "City not found", http.StatusNotFound)
+			return
+		}
+
+		// Then, find the boundary using the city's coordinates
+		boundaryName, geojson, err := h.findBoundaryByPoint(ctx, lat, lon)
+		if err != nil {
+			log.Printf("Error finding boundary for point (%.6f, %.6f): %v", lat, lon, err)
+			http.Error(w, "Boundary not found for this location", http.StatusNotFound)
+			return
+		}
+
+		render.JSON(w, r, map[string]any{
+			"name":     boundaryName,
+			"geometry": geojson,
+			"city": map[string]any{
+				"geonameid": geonameid,
+				"lat":       lat,
+				"lon":       lon,
+			},
+		})
+		return
+	}
+
+	// Priority 2: Check if name+country_code-based lookup is requested
+	if name != "" && countryCode != "" {
+		// First, find the city to get its coordinates
+		var lat, lon float64
+		err := h.DB.QueryRow(ctx, `
+			SELECT ST_Y(geom), ST_X(geom)
+			FROM cities_1000
+			WHERE name = $1 AND country_code = $2
+			ORDER BY population DESC
+			LIMIT 1
+		`, name, countryCode).Scan(&lat, &lon)
+
+		if err != nil {
+			log.Printf("Error finding city '%s' in country '%s': %v", name, countryCode, err)
+			http.Error(w, "City not found", http.StatusNotFound)
+			return
+		}
+
+		// Then, find the boundary using the city's coordinates
+		boundaryName, geojson, err := h.findBoundaryByPoint(ctx, lat, lon)
+		if err != nil {
+			log.Printf("Error finding boundary for point (%.6f, %.6f): %v", lat, lon, err)
+			http.Error(w, "Boundary not found for this location", http.StatusNotFound)
+			return
+		}
+
+		render.JSON(w, r, map[string]any{
+			"name":     boundaryName,
+			"geometry": geojson,
+			"city": map[string]any{
+				"name":         name,
+				"country_code": countryCode,
+				"lat":          lat,
+				"lon":          lon,
+			},
+		})
+		return
+	}
+
+	// Priority 3: Check if point-based lookup is requested
 	if latStr != "" && lonStr != "" {
 		lat, err := strconv.ParseFloat(latStr, 64)
 		if err != nil {
@@ -152,46 +235,7 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if city-based lookup is requested
-	if city != "" && countryCode != "" {
-		// First, find the city to get its coordinates
-		var lat, lon float64
-		err := h.DB.QueryRow(ctx, `
-			SELECT ST_Y(geom), ST_X(geom)
-			FROM cities_1000
-			WHERE name = $1 AND country_code = $2
-			ORDER BY population DESC
-			LIMIT 1
-		`, city, countryCode).Scan(&lat, &lon)
-
-		if err != nil {
-			log.Printf("Error finding city '%s' in country '%s': %v", city, countryCode, err)
-			http.Error(w, "City not found", http.StatusNotFound)
-			return
-		}
-
-		// Then, find the boundary using the city's coordinates
-		boundaryName, geojson, err := h.findBoundaryByPoint(ctx, lat, lon)
-		if err != nil {
-			log.Printf("Error finding boundary for point (%.6f, %.6f): %v", lat, lon, err)
-			http.Error(w, "Boundary not found for this location", http.StatusNotFound)
-			return
-		}
-
-		render.JSON(w, r, map[string]any{
-			"name":     boundaryName,
-			"geometry": geojson,
-			"city": map[string]any{
-				"name":         city,
-				"country_code": countryCode,
-				"lat":          lat,
-				"lon":          lon,
-			},
-		})
-		return
-	}
-
-	// Neither set of parameters is provided
-	http.Error(w, "Either 'lat' and 'lon' parameters, or 'city' and 'country_code' parameters are required", http.StatusBadRequest)
+	// No valid parameter group is provided
+	http.Error(w, "Either 'geonameid', 'name' and 'country_code', or 'lat' and 'lon' parameters are required", http.StatusBadRequest)
 }
 
