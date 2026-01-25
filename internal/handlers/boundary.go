@@ -135,13 +135,15 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// First, find the city by geonameid to get its coordinates
+		// First, find the city by geonameid to get its full information
+		var cityName string
+		var countryCode string
 		var lat, lon float64
 		err = h.DB.QueryRow(ctx, `
-			SELECT ST_Y(geom), ST_X(geom)
+			SELECT name, country_code, ST_Y(geom), ST_X(geom)
 			FROM cities_1000
 			WHERE geonameid = $1
-		`, geonameid).Scan(&lat, &lon)
+		`, geonameid).Scan(&cityName, &countryCode, &lat, &lon)
 
 		if err != nil {
 			log.Printf("Error finding city with geonameid '%d': %v", geonameid, err)
@@ -161,9 +163,11 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 			"name":     boundaryName,
 			"geometry": geojson,
 			"city": map[string]any{
-				"geonameid": geonameid,
-				"lat":       lat,
-				"lon":       lon,
+				"geonameid":   geonameid,
+				"name":        cityName,
+				"country_code": countryCode,
+				"lat":         lat,
+				"lon":         lon,
 			},
 		})
 		return
@@ -171,15 +175,16 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 
 	// Priority 2: Check if name+country_code-based lookup is requested
 	if name != "" && countryCode != "" {
-		// First, find the city to get its coordinates
+		// First, find the city to get its full information
+		var geonameid int64
 		var lat, lon float64
 		err := h.DB.QueryRow(ctx, `
-			SELECT ST_Y(geom), ST_X(geom)
+			SELECT geonameid, ST_Y(geom), ST_X(geom)
 			FROM cities_1000
 			WHERE name = $1 AND country_code = $2
 			ORDER BY population DESC
 			LIMIT 1
-		`, name, countryCode).Scan(&lat, &lon)
+		`, name, countryCode).Scan(&geonameid, &lat, &lon)
 
 		if err != nil {
 			log.Printf("Error finding city '%s' in country '%s': %v", name, countryCode, err)
@@ -199,10 +204,11 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 			"name":     boundaryName,
 			"geometry": geojson,
 			"city": map[string]any{
-				"name":         name,
+				"geonameid":   geonameid,
+				"name":        name,
 				"country_code": countryCode,
-				"lat":          lat,
-				"lon":          lon,
+				"lat":         lat,
+				"lon":         lon,
 			},
 		})
 		return
@@ -222,15 +228,45 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		name, geojson, err := h.findBoundaryByPoint(ctx, lat, lon)
+		// Find the boundary using the coordinates
+		boundaryName, geojson, err := h.findBoundaryByPoint(ctx, lat, lon)
 		if err != nil {
 			http.Error(w, "Boundary not found", http.StatusNotFound)
 			return
 		}
 
+		// Find the nearest city to the given coordinates
+		var geonameid int64
+		var cityName string
+		var countryCode string
+		var cityLat, cityLon float64
+		err = h.DB.QueryRow(ctx, `
+			SELECT geonameid, name, country_code, ST_Y(geom), ST_X(geom)
+			FROM cities_1000
+			ORDER BY geom <-> ST_SetSRID(ST_Point($1, $2), 4326)
+			LIMIT 1
+		`, lon, lat).Scan(&geonameid, &cityName, &countryCode, &cityLat, &cityLon)
+
+		if err != nil {
+			log.Printf("Error finding nearest city for point (%.6f, %.6f): %v", lat, lon, err)
+			// Still return the boundary even if city lookup fails
+			render.JSON(w, r, map[string]any{
+				"name":     boundaryName,
+				"geometry": geojson,
+			})
+			return
+		}
+
 		render.JSON(w, r, map[string]any{
-			"name":     name,
+			"name":     boundaryName,
 			"geometry": geojson,
+			"city": map[string]any{
+				"geonameid":   geonameid,
+				"name":        cityName,
+				"country_code": countryCode,
+				"lat":         cityLat,
+				"lon":         cityLon,
+			},
 		})
 		return
 	}
