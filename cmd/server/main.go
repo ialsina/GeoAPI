@@ -52,7 +52,7 @@ func main() {
 	r.Get("/boundary", boundaryHandler.GetBoundary)
 
 	// Swagger documentation
-	r.Get("/swagger/*", httpSwagger.Handler())
+	r.Get("/docs/*", httpSwagger.Handler())
 
 	log.Println("Listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", r))
