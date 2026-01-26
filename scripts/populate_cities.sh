@@ -4,8 +4,10 @@ set -e
 # Populates cities_1000 table from cities1000.txt
 # Works with data/ one level above scripts/
 
-DB_CONTAINER="city-db"
-CSV_PATH="/data/cities1000/cities1000.txt"
+DB_CONTAINER="geoapi-db"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+DATA_DIR="${ROOT_DIR}/data/cities1000"
+CSV_PATH="${DATA_DIR}/cities1000.txt"
 
 echo "Populating cities_1000..."
 

@@ -32,13 +32,13 @@ echo "Populating city_boundaries..."
 # Resolve paths relative to script location
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-GEOJSON_PATH="${ROOT_DIR}/data/geojson-world-cities/cities.geojson"
+GEOJSON_PATH="${ROOT_DIR}/geojson-world-cities/cities.geojson"
 
 check_file_exists "${GEOJSON_PATH}"
 
 docker run --rm \
   --network "$DOCKER_NETWORK" \
-  -v "$(realpath "${ROOT_DIR}/data/geojson-world-cities"):/data/geojson-world-cities:ro" \
+  -v "$(realpath "${ROOT_DIR}/geojson-world-cities"):/data/geojson-world-cities:ro" \
   -e PGUSER="$DB_USER" \
   -e PGPASSWORD="$DB_PASS" \
   ghcr.io/osgeo/gdal:alpine-small-3.8.4 \
