@@ -1,7 +1,7 @@
 services:
   db:
     image: postgis/postgis:15-3.4
-    container_name: city-db
+    container_name: geoapi-db
     environment:
       POSTGRES_DB: geodb
       POSTGRES_USER: geouser
@@ -14,7 +14,7 @@ services:
 
   api:
     build: .
-    container_name: city-api
+    container_name: geoapi-api
     environment:
       DATABASE_URL: postgres://geouser:geopass@db:5432/geodb
     volumes:

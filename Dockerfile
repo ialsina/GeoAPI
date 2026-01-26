@@ -31,7 +31,7 @@ RUN swag init -g cmd/server/main.go -o docs
 
 # Build static binary
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -v -o city-api ./cmd/server
+    go build -v -o geoapi ./cmd/server
 
 # =========================
 # Runtime stage
@@ -41,11 +41,11 @@ FROM gcr.io/distroless/base-debian12
 WORKDIR /app
 
 # Copy binary and Swagger docs from builder
-COPY --from=builder /app/city-api /app/city-api
+COPY --from=builder /app/geoapi /app/geoapi
 COPY --from=builder /app/docs /app/docs
 
 EXPOSE 8080
 
 USER nonroot:nonroot
-ENTRYPOINT ["/app/city-api"]
+ENTRYPOINT ["/app/geoapi"]
 
