@@ -8,10 +8,10 @@ DB_HOST="db"
 DB_NAME="geodb"
 DB_USER="geouser"
 DB_PASS="geopass"
-DOCKER_NETWORK="city-api_default"
+DOCKER_NETWORK="geoapi_default"
 
-# Path inside the Docker volume (data/ mounted to /data)
-GEOJSON_FILE="/data/geoBoundaries/geoBoundariesCGAZ_ADM2.geojson"
+# Path inside the Docker volume (geojson-world-cities/ mounted to /data/geojson-world-cities)
+GEOJSON_FILE="/data/geojson-world-cities/cities.geojson"
 
 # ============================
 # Helper function
@@ -25,13 +25,20 @@ function check_file_exists() {
 }
 
 # ============================
-# Populate adm2_boundaries
+# Populate city_boundaries
 # ============================
-echo "Populating adm2_boundaries..."
+echo "Populating city_boundaries..."
+
+# Resolve paths relative to script location
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+GEOJSON_PATH="${ROOT_DIR}/data/geojson-world-cities/cities.geojson"
+
+check_file_exists "${GEOJSON_PATH}"
 
 docker run --rm \
   --network "$DOCKER_NETWORK" \
-  -v "$(realpath ../data):/data:ro" \
+  -v "$(realpath "${ROOT_DIR}/data/geojson-world-cities"):/data/geojson-world-cities:ro" \
   -e PGUSER="$DB_USER" \
   -e PGPASSWORD="$DB_PASS" \
   ghcr.io/osgeo/gdal:alpine-small-3.8.4 \
@@ -39,11 +46,12 @@ docker run --rm \
   -f PostgreSQL \
   PG:"dbname=$DB_NAME user=$DB_USER password=$DB_PASS host=$DB_HOST" \
   "$GEOJSON_FILE" \
-  -nln adm2_boundaries \
+  -nln city_boundaries \
   -lco GEOMETRY_NAME=geom \
   -nlt MULTIPOLYGON \
   -a_srs "EPSG:4326" \
   -overwrite \
-  -select shapeID,shapeName,shapeGroup,shapeType
+  -sql "SELECT NAME as name FROM cities"
 
-echo "adm2_boundaries populated successfully!"
+echo "city_boundaries populated successfully!"
+

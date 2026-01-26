@@ -15,19 +15,41 @@ type BoundaryHandler struct {
 }
 
 // findBoundaryByPoint is a helper function that finds a boundary given lat/lon coordinates
-func (h *BoundaryHandler) findBoundaryByPoint(ctx context.Context, lat, lon float64) (string, string, error) {
+// boundaryType can be "adm2" or "city" (default is "city")
+func (h *BoundaryHandler) findBoundaryByPoint(ctx context.Context, lat, lon float64, boundaryType string) (string, string, error) {
 	var name string
 	var geojson string
 
-	err := h.DB.QueryRow(ctx, `
-		SELECT shapename, ST_AsGeoJSON(geom)
-		FROM adm2_boundaries
-		WHERE ST_Contains(
-			geom,
-			ST_SetSRID(ST_Point($1, $2), 4326)
-		)
-		LIMIT 1
-	`, lon, lat).Scan(&name, &geojson)
+	// Default to "city" if not specified
+	if boundaryType == "" {
+		boundaryType = "city"
+	}
+
+	var query string
+	if boundaryType == "adm2" {
+		query = `
+			SELECT shape_name, ST_AsGeoJSON(geom)
+			FROM adm2_boundaries
+			WHERE ST_Contains(
+				geom,
+				ST_SetSRID(ST_Point($1, $2), 4326)
+			)
+			LIMIT 1
+		`
+	} else {
+		// Default to "city"
+		query = `
+			SELECT name, ST_AsGeoJSON(geom)
+			FROM city_boundaries
+			WHERE ST_Contains(
+				geom,
+				ST_SetSRID(ST_Point($1, $2), 4326)
+			)
+			LIMIT 1
+		`
+	}
+
+	err := h.DB.QueryRow(ctx, query, lon, lat).Scan(&name, &geojson)
 
 	if err != nil {
 		return "", "", err
@@ -39,8 +61,12 @@ func (h *BoundaryHandler) findBoundaryByPoint(ctx context.Context, lat, lon floa
 func (h *BoundaryHandler) ByPoint(w http.ResponseWriter, r *http.Request) {
 	lat, _ := strconv.ParseFloat(r.URL.Query().Get("lat"), 64)
 	lon, _ := strconv.ParseFloat(r.URL.Query().Get("lon"), 64)
+	boundaryType := r.URL.Query().Get("type")
+	if boundaryType == "" {
+		boundaryType = "city"
+	}
 
-	name, geojson, err := h.findBoundaryByPoint(r.Context(), lat, lon)
+	name, geojson, err := h.findBoundaryByPoint(r.Context(), lat, lon, boundaryType)
 	if err != nil {
 		http.Error(w, "Boundary not found", http.StatusNotFound)
 		return
@@ -83,7 +109,11 @@ func (h *BoundaryHandler) ByCity(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Then, find the boundary using the city's coordinates
-	boundaryName, geojson, err := h.findBoundaryByPoint(ctx, lat, lon)
+	boundaryType := r.URL.Query().Get("type")
+	if boundaryType == "" {
+		boundaryType = "city"
+	}
+	boundaryName, geojson, err := h.findBoundaryByPoint(ctx, lat, lon, boundaryType)
 	if err != nil {
 		log.Printf("Error finding boundary for point (%.6f, %.6f): %v", lat, lon, err)
 		http.Error(w, "Boundary not found for this location", http.StatusNotFound)
@@ -104,7 +134,7 @@ func (h *BoundaryHandler) ByCity(w http.ResponseWriter, r *http.Request) {
 
 // GetBoundary godoc
 // @Summary      Get administrative boundary
-// @Description  Get an administrative boundary (ADM2) by geonameid, by city name and country code, or by coordinates. Returns the boundary name and GeoJSON geometry. If multiple parameter groups are provided, precedence is: geonameid > name+country_code > lat+lon.
+// @Description  Get an administrative boundary (ADM2 or city) by geonameid, by city name and country code, or by coordinates. Returns the boundary name and GeoJSON geometry. If multiple parameter groups are provided, precedence is: geonameid > name+country_code > lat+lon.
 // @Tags         boundaries
 // @Accept       json
 // @Produce      json
@@ -113,6 +143,7 @@ func (h *BoundaryHandler) ByCity(w http.ResponseWriter, r *http.Request) {
 // @Param        country_code query     string  false  "Country code (ISO 2-letter, required with name for city-based lookup)"
 // @Param        lat          query     number  false  "Latitude (required with lon for point-based lookup)"
 // @Param        lon          query     number  false  "Longitude (required with lat for point-based lookup)"
+// @Param        type         query     string  false  "Boundary type: 'adm2' or 'city' (default: 'city')"
 // @Success      200          {object}  map[string]interface{}  "Response with boundary name and GeoJSON geometry"
 // @Failure      400          {string}  string  "Bad Request - Invalid or missing parameters"
 // @Failure      404          {string}  string  "Not Found - Boundary or city not found"
@@ -126,6 +157,15 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 	countryCode := query.Get("country_code")
 	latStr := query.Get("lat")
 	lonStr := query.Get("lon")
+	boundaryType := query.Get("type")
+	if boundaryType == "" {
+		boundaryType = "city"
+	}
+	// Validate boundary type
+	if boundaryType != "adm2" && boundaryType != "city" {
+		http.Error(w, "Invalid 'type' parameter. Must be 'adm2' or 'city'", http.StatusBadRequest)
+		return
+	}
 
 	// Priority 1: Check if geonameid-based lookup is requested
 	if geonameidStr != "" {
@@ -152,7 +192,7 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Then, find the boundary using the city's coordinates
-		boundaryName, geojson, err := h.findBoundaryByPoint(ctx, lat, lon)
+		boundaryName, geojson, err := h.findBoundaryByPoint(ctx, lat, lon, boundaryType)
 		if err != nil {
 			log.Printf("Error finding boundary for point (%.6f, %.6f): %v", lat, lon, err)
 			http.Error(w, "Boundary not found for this location", http.StatusNotFound)
@@ -193,7 +233,7 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Then, find the boundary using the city's coordinates
-		boundaryName, geojson, err := h.findBoundaryByPoint(ctx, lat, lon)
+		boundaryName, geojson, err := h.findBoundaryByPoint(ctx, lat, lon, boundaryType)
 		if err != nil {
 			log.Printf("Error finding boundary for point (%.6f, %.6f): %v", lat, lon, err)
 			http.Error(w, "Boundary not found for this location", http.StatusNotFound)
@@ -229,7 +269,7 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Find the boundary using the coordinates
-		boundaryName, geojson, err := h.findBoundaryByPoint(ctx, lat, lon)
+		boundaryName, geojson, err := h.findBoundaryByPoint(ctx, lat, lon, boundaryType)
 		if err != nil {
 			http.Error(w, "Boundary not found", http.StatusNotFound)
 			return

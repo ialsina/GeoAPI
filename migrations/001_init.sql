@@ -19,8 +19,14 @@ CREATE TABLE adm2_boundaries (
     geom GEOMETRY(MultiPolygon, 4326)
 );
 
+CREATE TABLE city_boundaries (
+    name TEXT PRIMARY KEY,
+    geom GEOMETRY(MultiPolygon, 4326)
+);
+
 CREATE INDEX cities_geom_idx ON cities_1000 USING GIST (geom);
 CREATE INDEX cities_name_trgm_idx ON cities_1000 USING GIN (name gin_trgm_ops);
 CREATE INDEX cities_asciiname_trgm_idx ON cities_1000 USING GIN (asciiname gin_trgm_ops);
 CREATE INDEX adm2_geom_idx ON adm2_boundaries USING GIST (geom);
+CREATE INDEX city_boundaries_geom_idx ON city_boundaries USING GIST (geom);
 
