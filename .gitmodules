@@ -1,0 +1,3 @@
+[submodule "geojson-world-cities"]
+	path = geojson-world-cities
+	url = git@github.com:drei01/geojson-world-cities.git
