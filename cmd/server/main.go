@@ -42,11 +42,13 @@ func main() {
 
 	cityHandler := &handlers.CityHandler{DB: pool}
 	boundaryHandler := &handlers.BoundaryHandler{DB: pool}
+	healthHandler := &handlers.HealthHandler{DB: pool}
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
+	r.Get("/health", healthHandler.Health)
 	r.Get("/city", cityHandler.GetCity)
 	r.Get("/cities", cityHandler.SearchCities)
 	r.Get("/boundary", boundaryHandler.GetBoundary)
