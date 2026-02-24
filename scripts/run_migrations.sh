@@ -1,35 +1,49 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Runs all migrations in the migrations/ directory
-# Migrations are executed in alphabetical order by filename
+# Applies all pending SQL migrations from the migrations/ directory.
+# Migrations are tracked in the schema_migrations table so each file
+# is applied exactly once, in alphabetical (version) order.
 
-DB_CONTAINER="geoapi-db"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-MIGRATIONS_DIR="$ROOT_DIR/migrations"
+source "${SCRIPT_DIR}/common.sh"
 
-echo "Running migrations..."
+MIGRATIONS_DIR="${ROOT_DIR}/migrations"
 
-# Get all SQL files from migrations directory, sorted
-MIGRATIONS=$(find "$MIGRATIONS_DIR" -name "*.sql" -type f | sort)
+# ── Bootstrap migration tracking table ────────────────────────────────────────
+docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" << 'SQL'
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    filename   TEXT        PRIMARY KEY,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+SQL
 
-if [ -z "$MIGRATIONS" ]; then
-	echo "No migration files found in $MIGRATIONS_DIR"
-	exit 1
-fi
+# ── Apply pending migrations ───────────────────────────────────────────────────
+echo "Running migrations from ${MIGRATIONS_DIR} ..."
 
-# Run each migration
-for migration in $MIGRATIONS; do
-	migration_name=$(basename "$migration")
-	echo "Running migration: $migration_name"
+while IFS= read -r -d '' migration; do
+	name=$(basename "$migration")
 
-	if docker exec -i "$DB_CONTAINER" psql -U geouser -d geodb < "$migration"; then
-		echo "Successfully applied: $migration_name"
+	applied=$(docker exec "$DB_CONTAINER" \
+		psql -U "$DB_USER" -d "$DB_NAME" -t -c \
+		"SELECT COUNT(*) FROM schema_migrations WHERE filename = '${name}';" |
+		tr -d '[:space:]')
+
+	if [[ "$applied" -gt 0 ]]; then
+		echo "  skip  ${name}  (already applied)"
+		continue
+	fi
+
+	echo "  apply ${name} ..."
+	if docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" < "$migration"; then
+		docker exec "$DB_CONTAINER" \
+			psql -U "$DB_USER" -d "$DB_NAME" -c \
+			"INSERT INTO schema_migrations (filename) VALUES ('${name}');"
+		echo "  done  ${name}"
 	else
-		echo "Failed to apply: $migration_name"
+		echo "ERROR: Migration '${name}' failed — pipeline aborted."
 		exit 1
 	fi
-done
+done < <(find "$MIGRATIONS_DIR" -name "*.sql" -not -name "*.down.sql" -type f -print0 | sort -z)
 
-echo "All migrations completed successfully."
+echo "All migrations up to date."

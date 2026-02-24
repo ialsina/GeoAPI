@@ -1,59 +1,70 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Populates cities_1000 table from cities1000.txt
-# Works with data/ one level above scripts/
+# Populates the cities_1000 table from data/cities1000/cities1000.txt.
+# The data/ directory is mounted read-only at /data inside the DB container
+# (see docker-compose.yml), so COPY FROM uses the /data container path.
+#
+# GeoNames cities1000.txt is a tab-separated file with NO header row.
 
-DB_CONTAINER="geoapi-db"
-ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-DATA_DIR="${ROOT_DIR}/data/cities1000"
-CSV_PATH="${DATA_DIR}/cities1000.txt"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/common.sh"
+
+HOST_TXT="${DATA_DIR}/cities1000/cities1000.txt"
+CONTAINER_TXT="/data/cities1000/cities1000.txt"
+
+require_file "${HOST_TXT}"
 
 echo "Populating cities_1000..."
 
-docker exec -i $DB_CONTAINER psql -U geouser -d geodb << SQL
--- Optional: truncate table to re-run safely
+docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" << SQL
 TRUNCATE TABLE cities_1000;
 
--- Temporary table matching full CSV
+-- Temporary table matching all 19 columns of the GeoNames cities1000 format
+-- (tab-separated, no header — see https://download.geonames.org/export/dump/readme.txt)
 CREATE TEMP TABLE tmp_cities (
-    geonameid BIGINT,
-    name TEXT,
-    asciiname TEXT,
-    alternatenames TEXT,
-    latitude DOUBLE PRECISION,
-    longitude DOUBLE PRECISION,
-    feature_class TEXT,
-    feature_code TEXT,
-    country_code TEXT,
-    cc2 TEXT,
-    admin1_code TEXT,
-    admin2_code TEXT,
-    admin3_code TEXT,
-    admin4_code TEXT,
-    population BIGINT,
-    elevation INT,
-    dem INT,
-    timezone TEXT,
+    geonameid         BIGINT,
+    name              TEXT,
+    asciiname         TEXT,
+    alternatenames    TEXT,
+    latitude          DOUBLE PRECISION,
+    longitude         DOUBLE PRECISION,
+    feature_class     TEXT,
+    feature_code      TEXT,
+    country_code      TEXT,
+    cc2               TEXT,
+    admin1_code       TEXT,
+    admin2_code       TEXT,
+    admin3_code       TEXT,
+    admin4_code       TEXT,
+    population        BIGINT,
+    elevation         INTEGER,
+    dem               INTEGER,
+    timezone          TEXT,
     modification_date DATE
 );
 
--- Import CSV into temporary table
+-- GeoNames files are tab-separated with NO header row.
 COPY tmp_cities
-FROM '$CSV_PATH'
+FROM '${CONTAINER_TXT}'
 DELIMITER E'\t'
-CSV HEADER;
+CSV;
 
--- Insert needed columns into cities_1000
-INSERT INTO cities_1000(geonameid, name, asciiname, country, population, latitude, longitude, geom)
-SELECT geonameid, name, asciiname, country_code, population, latitude, longitude,
-       ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)
+INSERT INTO cities_1000 (geonameid, name, asciiname, country, population, latitude, longitude, geom)
+SELECT
+    geonameid,
+    name,
+    asciiname,
+    country_code,
+    population,
+    latitude,
+    longitude,
+    ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)
 FROM tmp_cities;
 
 DROP TABLE tmp_cities;
 
--- Verify
 SELECT COUNT(*) AS total_cities FROM cities_1000;
 SQL
 
-echo "cities_1000 populated."
+echo "cities_1000 table populated."
