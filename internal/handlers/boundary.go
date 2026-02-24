@@ -26,17 +26,8 @@ func (h *BoundaryHandler) findBoundaryByPoint(ctx context.Context, lat, lon floa
 	}
 
 	var query string
-	if boundaryType == "adm2" {
-		query = `
-			SELECT shape_name, ST_AsGeoJSON(geom)
-			FROM adm2_boundaries
-			WHERE ST_Contains(
-				geom,
-				ST_SetSRID(ST_Point($1, $2), 4326)
-			)
-			LIMIT 1
-		`
-	} else if boundaryType == "adm0" {
+	switch boundaryType {
+	case "adm0":
 		query = `
 			SELECT shape_name, ST_AsGeoJSON(geom)
 			FROM adm0_boundaries
@@ -46,8 +37,28 @@ func (h *BoundaryHandler) findBoundaryByPoint(ctx context.Context, lat, lon floa
 			)
 			LIMIT 1
 		`
-	} else {
-		// Default to "city"
+	case "adm1":
+		query = `
+			SELECT shape_name, ST_AsGeoJSON(geom)
+			FROM adm1_boundaries
+			WHERE ST_Contains(
+				geom,
+				ST_SetSRID(ST_Point($1, $2), 4326)
+			)
+			LIMIT 1
+		`
+	case "adm2":
+		query = `
+			SELECT shape_name, ST_AsGeoJSON(geom)
+			FROM adm2_boundaries
+			WHERE ST_Contains(
+				geom,
+				ST_SetSRID(ST_Point($1, $2), 4326)
+			)
+			LIMIT 1
+		`
+	default:
+		// "city" (default)
 		query = `
 			SELECT name, ST_AsGeoJSON(geom)
 			FROM city_boundaries
@@ -144,7 +155,7 @@ func (h *BoundaryHandler) ByCity(w http.ResponseWriter, r *http.Request) {
 
 // GetBoundary godoc
 // @Summary      Get administrative boundary
-// @Description  Get an administrative boundary (ADM0, ADM2 or city) by geonameid, by city name and country, or by coordinates. Returns the boundary name and GeoJSON geometry. If multiple parameter groups are provided, precedence is: geonameid > name+country > lat+lon.
+// @Description  Get an administrative boundary (ADM0, ADM1, ADM2 or city) by geonameid, by city name and country, or by coordinates. Returns the boundary name and GeoJSON geometry. If multiple parameter groups are provided, precedence is: geonameid > name+country > lat+lon.
 // @Tags         boundaries
 // @Accept       json
 // @Produce      json
@@ -153,7 +164,7 @@ func (h *BoundaryHandler) ByCity(w http.ResponseWriter, r *http.Request) {
 // @Param        country      query     string  false  "Country code (ISO 2-letter, required with name for city-based lookup)"
 // @Param        lat          query     number  false  "Latitude (required with lon for point-based lookup)"
 // @Param        lon          query     number  false  "Longitude (required with lat for point-based lookup)"
-// @Param        type         query     string  false  "Boundary type: 'adm0', 'adm2' or 'city' (default: 'city')"
+// @Param        type         query     string  false  "Boundary type: 'adm0', 'adm1', 'adm2' or 'city' (default: 'city')"
 // @Success      200          {object}  map[string]interface{}  "Response with boundary name and GeoJSON geometry"
 // @Failure      400          {string}  string  "Bad Request - Invalid or missing parameters"
 // @Failure      404          {string}  string  "Not Found - Boundary or city not found"
@@ -176,8 +187,8 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 		boundaryType = "city"
 	}
 	// Validate boundary type
-	if boundaryType != "adm0" && boundaryType != "adm2" && boundaryType != "city" {
-		http.Error(w, "Invalid 'type' parameter. Must be 'adm0', 'adm2' or 'city'", http.StatusBadRequest)
+	if boundaryType != "adm0" && boundaryType != "adm1" && boundaryType != "adm2" && boundaryType != "city" {
+		http.Error(w, "Invalid 'type' parameter. Must be 'adm0', 'adm1', 'adm2' or 'city'", http.StatusBadRequest)
 		return
 	}
 

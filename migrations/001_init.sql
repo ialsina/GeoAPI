@@ -41,6 +41,20 @@ CREATE TABLE IF NOT EXISTS adm0_boundaries (
 );
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- ADM1 province/state-level boundaries
+-- Source: geoBoundaries CGAZ — https://github.com/wmgeolab/geoBoundaries
+-- GeoJSON properties present: shapeID, shapeName, shapeGroup (ISO 3166-1 alpha-3), shapeType
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS adm1_boundaries (
+    -- shapeID from source data
+    shape_id    TEXT PRIMARY KEY,
+    shape_name  TEXT,
+    -- ISO 3166-1 alpha-3 (shapeGroup field in source data)
+    country     TEXT,
+    geom        GEOMETRY(MultiPolygon, 4326)
+);
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- ADM2 sub-national boundaries
 -- Source: geoBoundaries CGAZ
 -- GeoJSON properties present: shapeID, shapeName, shapeGroup (ISO 3166-1 alpha-3), shapeType
@@ -112,6 +126,7 @@ CREATE INDEX        IF NOT EXISTS cities_name_trgm_idx      ON cities_1000    US
 CREATE INDEX        IF NOT EXISTS cities_asciiname_trgm_idx ON cities_1000    USING GIN  (asciiname gin_trgm_ops);
 
 CREATE INDEX        IF NOT EXISTS adm0_geom_idx             ON adm0_boundaries USING GIST (geom);
+CREATE INDEX        IF NOT EXISTS adm1_geom_idx             ON adm1_boundaries USING GIST (geom);
 CREATE INDEX        IF NOT EXISTS adm2_geom_idx             ON adm2_boundaries USING GIST (geom);
 
 CREATE INDEX        IF NOT EXISTS city_boundaries_geom_idx  ON city_boundaries USING GIST (geom);
@@ -143,6 +158,17 @@ DO $$ BEGIN
     ) THEN
         ALTER TABLE adm0_boundaries
             ADD CONSTRAINT fk_adm0_boundaries_country
+            FOREIGN KEY (country) REFERENCES countries (iso3);
+    END IF;
+END $$;
+
+-- adm1_boundaries.country → countries.iso3  (geoBoundaries shapeGroup is alpha-3)
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'fk_adm1_boundaries_country'
+    ) THEN
+        ALTER TABLE adm1_boundaries
+            ADD CONSTRAINT fk_adm1_boundaries_country
             FOREIGN KEY (country) REFERENCES countries (iso3);
     END IF;
 END $$;

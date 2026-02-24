@@ -9,8 +9,8 @@ set -euo pipefail
 #   Phase 0 — Downloads   (idempotent; skipped if data already present)
 #   Phase 1 — Migrations  (tracked; each file applied exactly once)
 #   Phase 2 — Root data   countries  (no FK dependencies)
-#   Phase 3 — FK data     cities_1000, adm0_boundaries, adm2_boundaries,
-#                         airports  (all reference countries)
+#   Phase 3 — FK data     cities_1000, adm0_boundaries, adm1_boundaries,
+#                         adm2_boundaries, airports  (all reference countries)
 #   Phase 4 — Standalone  city_boundaries  (no FK to countries)
 #
 # Usage:
@@ -89,6 +89,9 @@ run download_cities1000.sh ${FORCE_FLAG}
 step "geoBoundaries ADM0 (GeoJSON)"
 run download_geoboundaries_adm0.sh ${FORCE_FLAG}
 
+step "geoBoundaries ADM1 (GeoJSON)"
+run download_geoboundaries_adm1.sh ${FORCE_FLAG}
+
 step "geoBoundaries ADM2 (GeoJSON)"
 run download_geoboundaries_adm2.sh ${FORCE_FLAG}
 
@@ -117,6 +120,9 @@ run populate_cities.sh
 
 step "adm0_boundaries  (FK → countries.iso3)"
 run populate_geoboundaries_adm0.sh
+
+step "adm1_boundaries  (FK → countries.iso3)"
+run populate_geoboundaries_adm1.sh
 
 step "adm2_boundaries  (FK → countries.iso3)"
 run populate_geoboundaries_adm2.sh
