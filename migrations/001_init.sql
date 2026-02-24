@@ -5,13 +5,14 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 -- Clean slate — drop all tables so re-running this migration is always safe.
 -- CASCADE handles FK dependencies automatically regardless of drop order.
 -- ─────────────────────────────────────────────────────────────────────────────
-DROP TABLE IF EXISTS airports        CASCADE;
-DROP TABLE IF EXISTS cities_1000     CASCADE;
-DROP TABLE IF EXISTS city_boundaries CASCADE;
-DROP TABLE IF EXISTS adm0_boundaries CASCADE;
-DROP TABLE IF EXISTS adm1_boundaries CASCADE;
-DROP TABLE IF EXISTS adm2_boundaries CASCADE;
-DROP TABLE IF EXISTS countries        CASCADE;
+DROP TABLE IF EXISTS airports                    CASCADE;
+DROP TABLE IF EXISTS cities_1000_alternate_names CASCADE;
+DROP TABLE IF EXISTS cities_1000                 CASCADE;
+DROP TABLE IF EXISTS city_boundaries             CASCADE;
+DROP TABLE IF EXISTS adm0_boundaries             CASCADE;
+DROP TABLE IF EXISTS adm1_boundaries             CASCADE;
+DROP TABLE IF EXISTS adm2_boundaries             CASCADE;
+DROP TABLE IF EXISTS countries                   CASCADE;
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Countries
@@ -98,6 +99,17 @@ CREATE TABLE cities_1000 (
 );
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- Alternate names for cities_1000
+-- Derived from the comma-separated alternatenames column of the GeoNames
+-- cities1000 dump.  Each row is one alternate name for a city.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE cities_1000_alternate_names (
+    id        SERIAL PRIMARY KEY,
+    geonameid BIGINT NOT NULL,
+    name      TEXT   NOT NULL
+);
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- City polygon boundaries
 -- Source: geojson-world-cities submodule
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -137,6 +149,9 @@ CREATE INDEX        cities_geom_idx           ON cities_1000     USING GIST (geo
 CREATE INDEX        cities_name_trgm_idx      ON cities_1000     USING GIN  (name gin_trgm_ops);
 CREATE INDEX        cities_asciiname_trgm_idx ON cities_1000     USING GIN  (asciiname gin_trgm_ops);
 
+CREATE INDEX        cities_altnames_geonameid_idx ON cities_1000_alternate_names (geonameid);
+CREATE INDEX        cities_altnames_name_trgm_idx ON cities_1000_alternate_names USING GIN (name gin_trgm_ops);
+
 CREATE INDEX        adm0_geom_idx             ON adm0_boundaries USING GIST (geom);
 CREATE INDEX        adm1_geom_idx             ON adm1_boundaries USING GIST (geom);
 CREATE INDEX        adm2_geom_idx             ON adm2_boundaries USING GIST (geom);
@@ -156,6 +171,11 @@ CREATE INDEX        airports_icao_idx         ON airports        (icao);
 ALTER TABLE cities_1000
     ADD CONSTRAINT fk_cities_1000_country
     FOREIGN KEY (country) REFERENCES countries (iso2);
+
+-- cities_1000_alternate_names.geonameid → cities_1000.geonameid
+ALTER TABLE cities_1000_alternate_names
+    ADD CONSTRAINT fk_cities_altnames_geonameid
+    FOREIGN KEY (geonameid) REFERENCES cities_1000 (geonameid) ON DELETE CASCADE;
 
 -- adm0_boundaries.country → countries.iso3  (geoBoundaries shapeGroup is alpha-3)
 ALTER TABLE adm0_boundaries

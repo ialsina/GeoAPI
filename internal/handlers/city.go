@@ -67,12 +67,26 @@ func (h *CityHandler) GetCity(w http.ResponseWriter, r *http.Request) {
 
 	case name != "":
 		if countryCode != "" {
-			// Search by name and country_code
+			// Search by name (or alternate name) and country_code
 			err = h.DB.QueryRow(ctx, `
-				SELECT geonameid, name, asciiname, country, population,
-				       ST_Y(geom), ST_X(geom)
-				FROM cities_1000
-				WHERE name = $1 AND country = $2
+				(
+					SELECT geonameid, name, asciiname, country, population,
+					       ST_Y(geom), ST_X(geom)
+					FROM cities_1000
+					WHERE name = $1 AND country = $2
+					ORDER BY population DESC
+					LIMIT 1
+				)
+				UNION ALL
+				(
+					SELECT c.geonameid, c.name, c.asciiname, c.country, c.population,
+					       ST_Y(c.geom), ST_X(c.geom)
+					FROM cities_1000_alternate_names an
+					JOIN cities_1000 c ON c.geonameid = an.geonameid
+					WHERE an.name = $1 AND c.country = $2
+					ORDER BY c.population DESC
+					LIMIT 1
+				)
 				ORDER BY population DESC
 				LIMIT 1
 			`, name, countryCode).Scan(
@@ -85,12 +99,26 @@ func (h *CityHandler) GetCity(w http.ResponseWriter, r *http.Request) {
 				&city.Longitude,
 			)
 		} else {
-			// Search by name only
+			// Search by name (or alternate name) only
 			err = h.DB.QueryRow(ctx, `
-				SELECT geonameid, name, asciiname, country, population,
-				       ST_Y(geom), ST_X(geom)
-				FROM cities_1000
-				WHERE name = $1
+				(
+					SELECT geonameid, name, asciiname, country, population,
+					       ST_Y(geom), ST_X(geom)
+					FROM cities_1000
+					WHERE name = $1
+					ORDER BY population DESC
+					LIMIT 1
+				)
+				UNION ALL
+				(
+					SELECT c.geonameid, c.name, c.asciiname, c.country, c.population,
+					       ST_Y(c.geom), ST_X(c.geom)
+					FROM cities_1000_alternate_names an
+					JOIN cities_1000 c ON c.geonameid = an.geonameid
+					WHERE an.name = $1
+					ORDER BY c.population DESC
+					LIMIT 1
+				)
 				ORDER BY population DESC
 				LIMIT 1
 			`, name).Scan(
@@ -177,37 +205,74 @@ func (h *CityHandler) SearchCities(w http.ResponseWriter, r *http.Request) {
 	var rows pgx.Rows
 	var err error
 
-	// Build query using fuzzy matching with trigram similarity
-	// Search both name and asciiname, order by best similarity match first, then by population
+	// Build query using fuzzy matching with trigram similarity.
+	// Searches name, asciiname, and alternate names.  Results are deduplicated
+	// by geonameid (keeping the highest similarity score per city), then
+	// ordered by similarity descending, population descending.
 	if countryCode != "" {
 		rows, err = h.DB.Query(ctx, `
 			SELECT geonameid, name, asciiname, country, population,
-			       ST_Y(geom), ST_X(geom),
-			       GREATEST(
-			           similarity(name, $1),
-			           similarity(asciiname, $1)
-			       ) AS sim
-			FROM cities_1000
-			WHERE country = $2
-			  AND (
-			       similarity(name, $1) >= $3
-			    OR similarity(asciiname, $1) >= $3
-			  )
-			ORDER BY sim DESC, population DESC
+			       lat, lon, best_sim
+			FROM (
+				SELECT DISTINCT ON (geonameid)
+				       geonameid, name, asciiname, country, population,
+				       lat, lon, best_sim
+				FROM (
+					SELECT geonameid, name, asciiname, country, population,
+					       ST_Y(geom) AS lat, ST_X(geom) AS lon,
+					       GREATEST(
+					           similarity(name, $1),
+					           similarity(asciiname, $1)
+					       ) AS best_sim
+					FROM cities_1000
+					WHERE country = $2
+					  AND (
+					       similarity(name, $1) >= $3
+					    OR similarity(asciiname, $1) >= $3
+					  )
+					UNION ALL
+					SELECT c.geonameid, c.name, c.asciiname, c.country, c.population,
+					       ST_Y(c.geom) AS lat, ST_X(c.geom) AS lon,
+					       similarity(an.name, $1) AS best_sim
+					FROM cities_1000_alternate_names an
+					JOIN cities_1000 c ON c.geonameid = an.geonameid
+					WHERE c.country = $2
+					  AND similarity(an.name, $1) >= $3
+				) sub
+				ORDER BY geonameid, best_sim DESC
+			) deduped
+			ORDER BY best_sim DESC, population DESC
 			LIMIT $4
 		`, name, countryCode, threshold, limit)
 	} else {
 		rows, err = h.DB.Query(ctx, `
 			SELECT geonameid, name, asciiname, country, population,
-			       ST_Y(geom), ST_X(geom),
-			       GREATEST(
-			           similarity(name, $1),
-			           similarity(asciiname, $1)
-			       ) AS sim
-			FROM cities_1000
-			WHERE similarity(name, $1) >= $2
-			   OR similarity(asciiname, $1) >= $2
-			ORDER BY sim DESC, population DESC
+			       lat, lon, best_sim
+			FROM (
+				SELECT DISTINCT ON (geonameid)
+				       geonameid, name, asciiname, country, population,
+				       lat, lon, best_sim
+				FROM (
+					SELECT geonameid, name, asciiname, country, population,
+					       ST_Y(geom) AS lat, ST_X(geom) AS lon,
+					       GREATEST(
+					           similarity(name, $1),
+					           similarity(asciiname, $1)
+					       ) AS best_sim
+					FROM cities_1000
+					WHERE similarity(name, $1) >= $2
+					   OR similarity(asciiname, $1) >= $2
+					UNION ALL
+					SELECT c.geonameid, c.name, c.asciiname, c.country, c.population,
+					       ST_Y(c.geom) AS lat, ST_X(c.geom) AS lon,
+					       similarity(an.name, $1) AS best_sim
+					FROM cities_1000_alternate_names an
+					JOIN cities_1000 c ON c.geonameid = an.geonameid
+					WHERE similarity(an.name, $1) >= $2
+				) sub
+				ORDER BY geonameid, best_sim DESC
+			) deduped
+			ORDER BY best_sim DESC, population DESC
 			LIMIT $3
 		`, name, threshold, limit)
 	}

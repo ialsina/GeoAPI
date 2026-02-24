@@ -64,27 +64,54 @@ func (h *BoundaryHandler) findCityByID(ctx context.Context, geonameid int64) (*c
 	return c, err
 }
 
-// findCityByName looks up the most-populous city matching name.
-// iso2 is optional; when non-empty it restricts results to that country.
+// findCityByName looks up the most-populous city matching name (or one of its
+// alternate names).  iso2 is optional; when non-empty it restricts results to
+// that country.
 func (h *BoundaryHandler) findCityByName(ctx context.Context, name, iso2 string) (*cityRecord, error) {
 	c := &cityRecord{}
 	var err error
 	if iso2 != "" {
 		err = h.DB.QueryRow(ctx, `
-			SELECT geonameid, name, country, ST_Y(geom), ST_X(geom)
-			FROM cities_1000
-			WHERE name = $1 AND country = $2
+			(
+				SELECT geonameid, name, country, ST_Y(geom), ST_X(geom), population
+				FROM cities_1000
+				WHERE name = $1 AND country = $2
+				ORDER BY population DESC
+				LIMIT 1
+			)
+			UNION ALL
+			(
+				SELECT c.geonameid, c.name, c.country, ST_Y(c.geom), ST_X(c.geom), c.population
+				FROM cities_1000_alternate_names an
+				JOIN cities_1000 c ON c.geonameid = an.geonameid
+				WHERE an.name = $1 AND c.country = $2
+				ORDER BY c.population DESC
+				LIMIT 1
+			)
 			ORDER BY population DESC
 			LIMIT 1
-		`, name, iso2).Scan(&c.GeonameID, &c.Name, &c.Country, &c.Lat, &c.Lon)
+		`, name, iso2).Scan(&c.GeonameID, &c.Name, &c.Country, &c.Lat, &c.Lon, new(int64))
 	} else {
 		err = h.DB.QueryRow(ctx, `
-			SELECT geonameid, name, country, ST_Y(geom), ST_X(geom)
-			FROM cities_1000
-			WHERE name = $1
+			(
+				SELECT geonameid, name, country, ST_Y(geom), ST_X(geom), population
+				FROM cities_1000
+				WHERE name = $1
+				ORDER BY population DESC
+				LIMIT 1
+			)
+			UNION ALL
+			(
+				SELECT c.geonameid, c.name, c.country, ST_Y(c.geom), ST_X(c.geom), c.population
+				FROM cities_1000_alternate_names an
+				JOIN cities_1000 c ON c.geonameid = an.geonameid
+				WHERE an.name = $1
+				ORDER BY c.population DESC
+				LIMIT 1
+			)
 			ORDER BY population DESC
 			LIMIT 1
-		`, name).Scan(&c.GeonameID, &c.Name, &c.Country, &c.Lat, &c.Lon)
+		`, name).Scan(&c.GeonameID, &c.Name, &c.Country, &c.Lat, &c.Lon, new(int64))
 	}
 	return c, err
 }

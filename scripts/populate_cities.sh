@@ -18,6 +18,7 @@ require_file "${HOST_TXT}"
 echo "Populating cities_1000..."
 
 docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" << SQL
+TRUNCATE TABLE cities_1000_alternate_names;
 TRUNCATE TABLE cities_1000;
 
 -- Temporary table matching all 19 columns of the GeoNames cities1000 format
@@ -64,9 +65,21 @@ SELECT
     ST_SetSRID(ST_MakePoint(t.longitude, t.latitude), 4326)
 FROM tmp_cities t;
 
+-- Populate alternate names by splitting the comma-separated alternatenames
+-- column. Only insert names for cities that were accepted into cities_1000
+-- (some are filtered out by the FK constraint on country).
+INSERT INTO cities_1000_alternate_names (geonameid, name)
+SELECT t.geonameid, trim(alt_name)
+FROM tmp_cities t
+CROSS JOIN LATERAL unnest(string_to_array(t.alternatenames, ',')) AS alt_name
+WHERE t.alternatenames <> ''
+  AND trim(alt_name) <> ''
+  AND t.geonameid IN (SELECT geonameid FROM cities_1000);
+
 DROP TABLE tmp_cities;
 
-SELECT COUNT(*) AS total_cities FROM cities_1000;
+SELECT COUNT(*) AS total_cities       FROM cities_1000;
+SELECT COUNT(*) AS total_alt_names    FROM cities_1000_alternate_names;
 SQL
 
-echo "cities_1000 table populated."
+echo "cities_1000 and cities_1000_alternate_names tables populated."
