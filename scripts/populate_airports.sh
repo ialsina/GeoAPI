@@ -57,7 +57,8 @@ SELECT
     ident,
     type,
     name,
-    iso_country,
+    CASE WHEN iso_country IN (SELECT iso2 FROM countries WHERE iso2 IS NOT NULL)
+         THEN iso_country END,
     municipality,
     latitude_deg,
     longitude_deg,

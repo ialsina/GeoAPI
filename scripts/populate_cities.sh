@@ -50,19 +50,19 @@ FROM '${CONTAINER_TXT}'
 DELIMITER E'\t'
 CSV;
 
--- Only insert cities whose country_code exists in countries (avoids FK violation for territories/unused codes)
+-- Set country to NULL when country_code is not in countries (disputed territories, unused codes)
 INSERT INTO cities_1000 (geonameid, name, asciiname, country, population, latitude, longitude, geom)
 SELECT
     t.geonameid,
     t.name,
     t.asciiname,
-    t.country_code,
+    CASE WHEN t.country_code IN (SELECT iso2 FROM countries WHERE iso2 IS NOT NULL)
+         THEN t.country_code END,
     t.population,
     t.latitude,
     t.longitude,
     ST_SetSRID(ST_MakePoint(t.longitude, t.latitude), 4326)
-FROM tmp_cities t
-WHERE t.country_code IN (SELECT iso2 FROM countries);
+FROM tmp_cities t;
 
 DROP TABLE tmp_cities;
 
