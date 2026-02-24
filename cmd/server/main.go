@@ -42,6 +42,7 @@ func main() {
 
 	cityHandler := &handlers.CityHandler{DB: pool}
 	boundaryHandler := &handlers.BoundaryHandler{DB: pool}
+	countryHandler := &handlers.CountryHandler{DB: pool}
 	healthHandler := &handlers.HealthHandler{DB: pool}
 
 	r := chi.NewRouter()
@@ -52,6 +53,8 @@ func main() {
 	r.Get("/city", cityHandler.GetCity)
 	r.Get("/cities", cityHandler.SearchCities)
 	r.Get("/boundary", boundaryHandler.GetBoundary)
+	r.Get("/country", countryHandler.GetCountry)
+	r.Get("/countries", countryHandler.ListCountries)
 
 	// Swagger documentation
 	r.Get("/docs/*", httpSwagger.Handler())
