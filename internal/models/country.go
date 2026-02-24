@@ -12,5 +12,3 @@ type Country struct {
 	TLD       *string `json:"tld,omitempty" example:".us"`
 	Continent *string `json:"continent,omitempty" example:"NA"`
 }
-
-

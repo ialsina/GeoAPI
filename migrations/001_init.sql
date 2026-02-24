@@ -65,3 +65,16 @@ CREATE INDEX cities_asciiname_trgm_idx ON cities_1000 USING GIN (asciiname gin_t
 CREATE INDEX adm0_geom_idx ON adm0_boundaries USING GIST (geom);
 CREATE INDEX adm2_geom_idx ON adm2_boundaries USING GIST (geom);
 CREATE INDEX city_boundaries_geom_idx ON city_boundaries USING GIST (geom);
+
+ALTER TABLE cities_1000
+    ADD CONSTRAINT fk_cities_1000_country
+    FOREIGN KEY (country_code) REFERENCES countries (iso2);
+
+ALTER TABLE adm0_boundaries
+    ADD CONSTRAINT fk_adm0_boundaries_country
+    FOREIGN KEY (country_code) REFERENCES countries (iso2);
+
+ALTER TABLE adm2_boundaries
+    ADD CONSTRAINT fk_adm2_boundaries_country
+    FOREIGN KEY (country_code) REFERENCES countries (iso2);
+
