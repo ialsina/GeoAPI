@@ -41,6 +41,7 @@ func main() {
 	pool := db.NewPool(dsn)
 
 	cityHandler := &handlers.CityHandler{DB: pool}
+	airportHandler := &handlers.AirportHandler{DB: pool}
 	boundaryHandler := &handlers.BoundaryHandler{DB: pool}
 	countryHandler := &handlers.CountryHandler{DB: pool}
 	healthHandler := &handlers.HealthHandler{DB: pool}
@@ -52,6 +53,8 @@ func main() {
 	r.Get("/health", healthHandler.Health)
 	r.Get("/city", cityHandler.GetCity)
 	r.Get("/cities", cityHandler.SearchCities)
+	r.Get("/airport", airportHandler.GetAirport)
+	r.Get("/airports", airportHandler.SearchAirports)
 	r.Get("/boundary", boundaryHandler.GetBoundary)
 	r.Get("/country", countryHandler.GetCountry)
 	r.Get("/countries", countryHandler.ListCountries)

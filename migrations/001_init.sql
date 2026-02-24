@@ -55,16 +55,33 @@ CREATE TABLE city_boundaries (
     geom GEOMETRY(MultiPolygon, 4326)
 );
 
+CREATE TABLE airports (
+    id BIGINT PRIMARY KEY,
+    ident TEXT,
+    type TEXT,
+    name TEXT,
+    iso_country TEXT,
+    municipality TEXT,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    elevation DOUBLE PRECISION,
+    iata_code TEXT,
+    icao_code TEXT
+);
+
 CREATE UNIQUE INDEX countries_iso2_idx ON countries (iso2);
 CREATE UNIQUE INDEX countries_iso3_idx ON countries (iso3);
 CREATE INDEX countries_name_trgm_idx ON countries USING GIN (name gin_trgm_ops);
-
 CREATE INDEX cities_geom_idx ON cities_1000 USING GIST (geom);
 CREATE INDEX cities_name_trgm_idx ON cities_1000 USING GIN (name gin_trgm_ops);
 CREATE INDEX cities_asciiname_trgm_idx ON cities_1000 USING GIN (asciiname gin_trgm_ops);
 CREATE INDEX adm0_geom_idx ON adm0_boundaries USING GIST (geom);
 CREATE INDEX adm2_geom_idx ON adm2_boundaries USING GIST (geom);
 CREATE INDEX city_boundaries_geom_idx ON city_boundaries USING GIST (geom);
+CREATE INDEX airports_name_trgm_idx ON airports USING GIN (name gin_trgm_ops);
+CREATE INDEX airports_ident_idx ON airports (ident);
+CREATE INDEX airports_iata_idx ON airports (iata_code);
+CREATE INDEX airports_icao_idx ON airports (icao_code);
 
 ALTER TABLE cities_1000
     ADD CONSTRAINT fk_cities_1000_country
