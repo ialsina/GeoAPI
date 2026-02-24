@@ -27,21 +27,12 @@ repos:
       # shfmt
       #
       - id: shfmt
-        name: Run lint check (shfmt -d)
+        name: Auto-format shell scripts (shfmt -w)
         entry: shfmt
         language: system
         files: \.(sh|bash)$
         types: [file]
-        args: [ '-i', '0', '-ci', '-sr', '-d' ]
-      # shfmt -w (must manually invoke)
-      #
-      - id: shfmtw
-        name: Auto-fix lint errors (shfmt -w)
-        entry: shfmt
-        language: system
-        stages: [manual]
-        files: \.(sh|bash)$
-        types: [file]
+        # Use write mode (-w) so this hook behaves like other auto-fixers
         args: [ '-i', '0', '-ci', '-sr', '-kp', '-w' ]
 
     # ==========================================================================
