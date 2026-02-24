@@ -65,8 +65,8 @@ CREATE TABLE airports (
     latitude DOUBLE PRECISION,
     longitude DOUBLE PRECISION,
     elevation DOUBLE PRECISION,
-    iata_code TEXT,
-    icao_code TEXT
+    iata TEXT,
+    icao TEXT
 );
 
 CREATE UNIQUE INDEX countries_iso2_idx ON countries (iso2);
@@ -80,8 +80,8 @@ CREATE INDEX adm2_geom_idx ON adm2_boundaries USING GIST (geom);
 CREATE INDEX city_boundaries_geom_idx ON city_boundaries USING GIST (geom);
 CREATE INDEX airports_name_trgm_idx ON airports USING GIN (name gin_trgm_ops);
 CREATE INDEX airports_ident_idx ON airports (ident);
-CREATE INDEX airports_iata_idx ON airports (iata_code);
-CREATE INDEX airports_icao_idx ON airports (icao_code);
+CREATE INDEX airports_iata_idx ON airports (iata);
+CREATE INDEX airports_icao_idx ON airports (icao);
 
 ALTER TABLE cities_1000
     ADD CONSTRAINT fk_cities_1000_country
@@ -94,3 +94,8 @@ ALTER TABLE adm0_boundaries
 ALTER TABLE adm2_boundaries
     ADD CONSTRAINT fk_adm2_boundaries_country
     FOREIGN KEY (country_code) REFERENCES countries (iso2);
+
+ALTER TABLE airports
+    ADD CONSTRAINT fk_airports_country
+    FOREIGN KEY (iso_country) REFERENCES countries (iso2);
+

@@ -41,16 +41,6 @@ func (h *AirportHandler) GetAirport(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	countryCode := r.URL.Query().Get("country_code")
 
-	// Prefer new param names, fall back to legacy names
-	iata := r.URL.Query().Get("iata")
-	if iata == "" {
-		iata = r.URL.Query().Get("iata_code")
-	}
-	icao := r.URL.Query().Get("icao")
-	if icao == "" {
-		icao = r.URL.Query().Get("icao_code")
-	}
-
 	iata = strings.ToUpper(strings.TrimSpace(iata))
 	icao = strings.ToUpper(strings.TrimSpace(icao))
 
@@ -66,7 +56,7 @@ func (h *AirportHandler) GetAirport(w http.ResponseWriter, r *http.Request) {
 		}
 		err = h.DB.QueryRow(ctx, `
 			SELECT id, ident, type, name, iso_country, municipality,
-			       latitude, longitude, elevation, iata_code, icao_code
+			       latitude, longitude, elevation, iata, icao
 			FROM airports
 			WHERE id = $1
 		`, parsedID).Scan(
@@ -86,7 +76,7 @@ func (h *AirportHandler) GetAirport(w http.ResponseWriter, r *http.Request) {
 	case ident != "":
 		err = h.DB.QueryRow(ctx, `
 			SELECT id, ident, type, name, iso_country, municipality,
-			       latitude, longitude, elevation, iata_code, icao_code
+			       latitude, longitude, elevation, iata, icao
 			FROM airports
 			WHERE ident = $1
 		`, ident).Scan(
@@ -106,9 +96,9 @@ func (h *AirportHandler) GetAirport(w http.ResponseWriter, r *http.Request) {
 	case iata != "":
 		err = h.DB.QueryRow(ctx, `
 			SELECT id, ident, type, name, iso_country, municipality,
-			       latitude, longitude, elevation, iata_code, icao_code
+			       latitude, longitude, elevation, iata, icao
 			FROM airports
-			WHERE iata_code = $1
+			WHERE iata = $1
 		`, iata).Scan(
 			&airport.ID,
 			&airport.Ident,
@@ -126,9 +116,9 @@ func (h *AirportHandler) GetAirport(w http.ResponseWriter, r *http.Request) {
 	case icao != "":
 		err = h.DB.QueryRow(ctx, `
 			SELECT id, ident, type, name, iso_country, municipality,
-			       latitude, longitude, elevation, iata_code, icao_code
+			       latitude, longitude, elevation, iata, icao
 			FROM airports
-			WHERE icao_code = $1
+			WHERE icao = $1
 		`, icao).Scan(
 			&airport.ID,
 			&airport.Ident,
@@ -169,7 +159,7 @@ func (h *AirportHandler) GetAirport(w http.ResponseWriter, r *http.Request) {
 			// Search by name only
 			err = h.DB.QueryRow(ctx, `
 				SELECT id, ident, type, name, iso_country, municipality,
-				       latitude, longitude, elevation, iata_code, icao_code
+				       latitude, longitude, elevation, iata, icao
 				FROM airports
 				WHERE name = $1
 				LIMIT 1
@@ -224,10 +214,12 @@ func (h *AirportHandler) SearchAirports(w http.ResponseWriter, r *http.Request) 
 	name := query.Get("name")
 	iata := query.Get("iata")
 	if iata == "" {
+		// Legacy param name for backward compatibility
 		iata = query.Get("iata_code")
 	}
 	icao := query.Get("icao")
 	if icao == "" {
+		// Legacy param name for backward compatibility
 		icao = query.Get("icao_code")
 	}
 	iata = strings.ToUpper(strings.TrimSpace(iata))
@@ -274,11 +266,11 @@ func (h *AirportHandler) SearchAirports(w http.ResponseWriter, r *http.Request) 
 		// Exact code search (IATA/ICAO)
 		rows, err = h.DB.Query(ctx, `
 			SELECT id, ident, type, name, iso_country, municipality,
-			       latitude, longitude, elevation, iata_code, icao_code,
+			       latitude, longitude, elevation, iata, icao,
 			       1.0 AS sim
 			FROM airports
-			WHERE ($1 = '' OR iata_code = $1)
-			  AND ($2 = '' OR icao_code = $2)
+			WHERE ($1 = '' OR iata = $1)
+			  AND ($2 = '' OR icao = $2)
 			  AND ($3 = '' OR iso_country = $3)
 			ORDER BY name ASC
 			LIMIT $4
@@ -288,7 +280,7 @@ func (h *AirportHandler) SearchAirports(w http.ResponseWriter, r *http.Request) 
 		if countryCode != "" {
 			rows, err = h.DB.Query(ctx, `
 				SELECT id, ident, type, name, iso_country, municipality,
-				       latitude, longitude, elevation, iata_code, icao_code,
+				       latitude, longitude, elevation, iata, icao,
 				       similarity(name, $1) AS sim
 				FROM airports
 				WHERE iso_country = $2
@@ -299,7 +291,7 @@ func (h *AirportHandler) SearchAirports(w http.ResponseWriter, r *http.Request) 
 		} else {
 			rows, err = h.DB.Query(ctx, `
 				SELECT id, ident, type, name, iso_country, municipality,
-				       latitude, longitude, elevation, iata_code, icao_code,
+				       latitude, longitude, elevation, iata, icao,
 				       similarity(name, $1) AS sim
 				FROM airports
 				WHERE similarity(name, $1) >= $2
