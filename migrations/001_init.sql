@@ -28,14 +28,14 @@ CREATE TABLE countries (
 CREATE TABLE adm0_boundaries (
     shape_id TEXT PRIMARY KEY,
     shape_name TEXT,
-    country_code TEXT,
+    country TEXT,
     geom GEOMETRY(MultiPolygon, 4326)
 );
 
 CREATE TABLE adm2_boundaries (
     shape_id TEXT PRIMARY KEY,
     shape_name TEXT,
-    country_code TEXT,
+    country TEXT,
     geom GEOMETRY(MultiPolygon, 4326)
 );
 
@@ -43,7 +43,7 @@ CREATE TABLE cities_1000 (
     geonameid BIGINT PRIMARY KEY,
     name TEXT,
     asciiname TEXT,
-    country_code TEXT,
+    country TEXT,
     population BIGINT,
     latitude DOUBLE PRECISION,
     longitude DOUBLE PRECISION,
@@ -60,7 +60,7 @@ CREATE TABLE airports (
     ident TEXT,
     type TEXT,
     name TEXT,
-    iso_country TEXT,
+    country TEXT,
     municipality TEXT,
     latitude DOUBLE PRECISION,
     longitude DOUBLE PRECISION,
@@ -85,17 +85,17 @@ CREATE INDEX airports_icao_idx ON airports (icao);
 
 ALTER TABLE cities_1000
     ADD CONSTRAINT fk_cities_1000_country
-    FOREIGN KEY (country_code) REFERENCES countries (iso2);
+    FOREIGN KEY (country) REFERENCES countries (iso2);
 
 ALTER TABLE adm0_boundaries
     ADD CONSTRAINT fk_adm0_boundaries_country
-    FOREIGN KEY (country_code) REFERENCES countries (iso2);
+    FOREIGN KEY (country) REFERENCES countries (iso2);
 
 ALTER TABLE adm2_boundaries
     ADD CONSTRAINT fk_adm2_boundaries_country
-    FOREIGN KEY (country_code) REFERENCES countries (iso2);
+    FOREIGN KEY (country) REFERENCES countries (iso2);
 
 ALTER TABLE airports
     ADD CONSTRAINT fk_airports_country
-    FOREIGN KEY (iso_country) REFERENCES countries (iso2);
+    FOREIGN KEY (country) REFERENCES countries (iso2);
 

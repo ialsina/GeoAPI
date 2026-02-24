@@ -48,9 +48,8 @@ COPY tmp_airports
 FROM '$CONTAINER_CSV_PATH'
 WITH (FORMAT csv, HEADER true, DELIMITER ',');
 
--- Insert needed columns into airports
 -- Convert elevation from feet to meters (1 foot = 0.3048 meters)
-INSERT INTO airports(id, ident, type, name, iso_country, municipality, latitude, longitude, elevation, iata, icao)
+INSERT INTO airports(id, ident, type, name, country, municipality, latitude, longitude, elevation, iata, icao)
 SELECT id, ident, type, name, iso_country, municipality, latitude_deg, longitude_deg,
        CASE WHEN elevation_ft IS NOT NULL THEN elevation_ft * 0.3048 ELSE NULL END,
        UPPER(iata_code), UPPER(icao_code)

@@ -45,7 +45,7 @@ DELIMITER E'\t'
 CSV HEADER;
 
 -- Insert needed columns into cities_1000
-INSERT INTO cities_1000(geonameid, name, asciiname, country_code, population, latitude, longitude, geom)
+INSERT INTO cities_1000(geonameid, name, asciiname, country, population, latitude, longitude, geom)
 SELECT geonameid, name, asciiname, country_code, population, latitude, longitude,
        ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)
 FROM tmp_cities;

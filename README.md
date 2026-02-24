@@ -195,7 +195,7 @@ Retrieve a single city by geoname ID or name.
 **Query Parameters**:
 - `geonameid` (optional): GeoNames ID
 - `name` (optional): City name
-- `country_code` (optional): ISO 2-letter country code (required when searching by name alone)
+- `country` (optional): ISO 2-letter country code (required when searching by name alone)
 
 **Examples**:
 ```bash
@@ -203,7 +203,7 @@ Retrieve a single city by geoname ID or name.
 curl "http://localhost:8080/city?geonameid=5391959"
 
 # By name and country
-curl "http://localhost:8080/city?name=San%20Francisco&country_code=US"
+curl "http://localhost:8080/city?name=San%20Francisco&country=US"
 
 # By name only (returns most populous match)
 curl "http://localhost:8080/city?name=Paris"
@@ -230,7 +230,7 @@ Fuzzy search for cities by name using trigram similarity.
 
 **Query Parameters**:
 - `name` (required): City name to search for
-- `country_code` (optional): Filter by country code
+- `country` (optional): Filter by country code
 - `limit` (optional): Maximum results (default: 50, max: 200)
 - `threshold` (optional): Minimum similarity (default: 0.2, range: 0.0-1.0)
 
@@ -240,7 +240,7 @@ Fuzzy search for cities by name using trigram similarity.
 curl "http://localhost:8080/cities?name=San%20Francisco"
 
 # With country filter
-curl "http://localhost:8080/cities?name=Paris&country_code=FR"
+curl "http://localhost:8080/cities?name=Paris&country=FR"
 
 # With custom limit and threshold
 curl "http://localhost:8080/cities?name=New%20York&limit=10&threshold=0.3"
@@ -276,7 +276,7 @@ Retrieve administrative boundaries (ADM2 or city) by various methods.
 
 2. **By city name and country**:
    - `name` (required): City name
-   - `country_code` (required): ISO 2-letter country code
+   - `country` (required): ISO 2-letter country code
 
 3. **By coordinates**:
    - `lat` (required): Latitude
@@ -291,7 +291,7 @@ Retrieve administrative boundaries (ADM2 or city) by various methods.
 curl "http://localhost:8080/boundary?geonameid=5391959"
 
 # By city name and country
-curl "http://localhost:8080/boundary?name=San%20Francisco&country_code=US"
+curl "http://localhost:8080/boundary?name=San%20Francisco&country=US"
 
 # By coordinates (city boundary)
 curl "http://localhost:8080/boundary?lat=37.7749&lon=-122.4194&type=city"
@@ -308,7 +308,7 @@ curl "http://localhost:8080/boundary?lat=37.7749&lon=-122.4194&type=adm2"
   "city": {
     "geonameid": 5391959,
     "name": "San Francisco",
-    "country_code": "US",
+    "country": "US",
     "lat": 37.7749,
     "lon": -122.4194
   }

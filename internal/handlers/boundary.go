@@ -107,7 +107,7 @@ func (h *BoundaryHandler) ByCity(w http.ResponseWriter, r *http.Request) {
 	err := h.DB.QueryRow(ctx, `
 		SELECT ST_Y(geom), ST_X(geom)
 		FROM cities_1000
-		WHERE name = $1 AND country_code = $2
+		WHERE name = $1 AND country = $2
 		ORDER BY population DESC
 		LIMIT 1
 	`, name, country).Scan(&lat, &lon)
@@ -144,13 +144,13 @@ func (h *BoundaryHandler) ByCity(w http.ResponseWriter, r *http.Request) {
 
 // GetBoundary godoc
 // @Summary      Get administrative boundary
-// @Description  Get an administrative boundary (ADM0, ADM2 or city) by geonameid, by city name and country code, or by coordinates. Returns the boundary name and GeoJSON geometry. If multiple parameter groups are provided, precedence is: geonameid > name+country_code > lat+lon.
+// @Description  Get an administrative boundary (ADM0, ADM2 or city) by geonameid, by city name and country, or by coordinates. Returns the boundary name and GeoJSON geometry. If multiple parameter groups are provided, precedence is: geonameid > name+country > lat+lon.
 // @Tags         boundaries
 // @Accept       json
 // @Produce      json
 // @Param        geonameid    query     int     false  "Geoname ID of the city (highest priority)"
-// @Param        name         query     string  false  "City name (required with country_code for city-based lookup)"
-// @Param        country_code query     string  false  "Country code (ISO 2-letter, required with name for city-based lookup)"
+// @Param        name         query     string  false  "City name (required with country for city-based lookup)"
+// @Param        country      query     string  false  "Country code (ISO 2-letter, required with name for city-based lookup)"
 // @Param        lat          query     number  false  "Latitude (required with lon for point-based lookup)"
 // @Param        lon          query     number  false  "Longitude (required with lat for point-based lookup)"
 // @Param        type         query     string  false  "Boundary type: 'adm0', 'adm2' or 'city' (default: 'city')"
@@ -164,7 +164,11 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 
 	geonameidStr := query.Get("geonameid")
 	name := query.Get("name")
-	countryCode := query.Get("country_code")
+	countryCode := query.Get("country")
+	if countryCode == "" {
+		// Legacy param name for backward compatibility
+		countryCode = query.Get("country_code")
+	}
 	latStr := query.Get("lat")
 	lonStr := query.Get("lon")
 	boundaryType := query.Get("type")
@@ -190,7 +194,7 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 		var countryCode string
 		var lat, lon float64
 		err = h.DB.QueryRow(ctx, `
-			SELECT name, country_code, ST_Y(geom), ST_X(geom)
+			SELECT name, country, ST_Y(geom), ST_X(geom)
 			FROM cities_1000
 			WHERE geonameid = $1
 		`, geonameid).Scan(&cityName, &countryCode, &lat, &lon)
@@ -215,7 +219,7 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 			"city": map[string]any{
 				"geonameid":   geonameid,
 				"name":        cityName,
-				"country_code": countryCode,
+				"country":      countryCode,
 				"lat":         lat,
 				"lon":         lon,
 			},
@@ -223,7 +227,7 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Priority 2: Check if name+country_code-based lookup is requested
+	// Priority 2: Check if name+country-based lookup is requested
 	if name != "" && countryCode != "" {
 		// First, find the city to get its full information
 		var geonameid int64
@@ -231,7 +235,7 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 		err := h.DB.QueryRow(ctx, `
 			SELECT geonameid, ST_Y(geom), ST_X(geom)
 			FROM cities_1000
-			WHERE name = $1 AND country_code = $2
+			WHERE name = $1 AND country = $2
 			ORDER BY population DESC
 			LIMIT 1
 		`, name, countryCode).Scan(&geonameid, &lat, &lon)
@@ -256,7 +260,7 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 			"city": map[string]any{
 				"geonameid":   geonameid,
 				"name":        name,
-				"country_code": countryCode,
+				"country":      countryCode,
 				"lat":         lat,
 				"lon":         lon,
 			},
@@ -291,7 +295,7 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 		var countryCode string
 		var cityLat, cityLon float64
 		err = h.DB.QueryRow(ctx, `
-			SELECT geonameid, name, country_code, ST_Y(geom), ST_X(geom)
+			SELECT geonameid, name, country, ST_Y(geom), ST_X(geom)
 			FROM cities_1000
 			ORDER BY geom <-> ST_SetSRID(ST_Point($1, $2), 4326)
 			LIMIT 1
@@ -313,7 +317,7 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 			"city": map[string]any{
 				"geonameid":   geonameid,
 				"name":        cityName,
-				"country_code": countryCode,
+				"country":      countryCode,
 				"lat":         cityLat,
 				"lon":         cityLon,
 			},
@@ -322,5 +326,5 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// No valid parameter group is provided
-	http.Error(w, "Either 'geonameid', 'name' and 'country_code', or 'lat' and 'lon' parameters are required", http.StatusBadRequest)
+	http.Error(w, "Either 'geonameid', 'name' and 'country', or 'lat' and 'lon' parameters are required", http.StatusBadRequest)
 }

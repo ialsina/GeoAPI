@@ -18,13 +18,13 @@ type CityHandler struct {
 
 // GetCity godoc
 // @Summary      Get a city by ID or name
-// @Description  Retrieve a single city by geonameid, or by name (optionally with country_code)
+// @Description  Retrieve a single city by geonameid, or by name (optionally with country)
 // @Tags         cities
 // @Accept       json
 // @Produce      json
 // @Param        geonameid   query     int     false  "Geoname ID of the city"
 // @Param        name        query     string  false  "Name of the city"
-// @Param        country_code query    string  false  "Country code (ISO 2-letter), required if searching by name"
+// @Param        country      query    string  false  "Country code (ISO 2-letter), required if searching by name"
 // @Success      200         {object}  models.City
 // @Failure      400         {string}  string  "Bad Request - Invalid parameters"
 // @Failure      404         {string}  string  "Not Found - City not found"
@@ -34,7 +34,11 @@ func (h *CityHandler) GetCity(w http.ResponseWriter, r *http.Request) {
 
 	geonameid := r.URL.Query().Get("geonameid")
 	name := r.URL.Query().Get("name")
-	countryCode := r.URL.Query().Get("country_code")
+	countryCode := r.URL.Query().Get("country")
+	if countryCode == "" {
+		// Legacy param name for backward compatibility
+		countryCode = r.URL.Query().Get("country_code")
+	}
 
 	var city models.City
 	var err error
@@ -47,7 +51,7 @@ func (h *CityHandler) GetCity(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		err = h.DB.QueryRow(ctx, `
-			SELECT geonameid, name, asciiname, country_code, population,
+			SELECT geonameid, name, asciiname, country, population,
 			       ST_Y(geom), ST_X(geom)
 			FROM cities_1000
 			WHERE geonameid = $1
@@ -65,10 +69,10 @@ func (h *CityHandler) GetCity(w http.ResponseWriter, r *http.Request) {
 		if countryCode != "" {
 			// Search by name and country_code
 			err = h.DB.QueryRow(ctx, `
-				SELECT geonameid, name, asciiname, country_code, population,
+				SELECT geonameid, name, asciiname, country, population,
 				       ST_Y(geom), ST_X(geom)
 				FROM cities_1000
-				WHERE name = $1 AND country_code = $2
+				WHERE name = $1 AND country = $2
 				ORDER BY population DESC
 				LIMIT 1
 			`, name, countryCode).Scan(
@@ -83,7 +87,7 @@ func (h *CityHandler) GetCity(w http.ResponseWriter, r *http.Request) {
 		} else {
 			// Search by name only
 			err = h.DB.QueryRow(ctx, `
-				SELECT geonameid, name, asciiname, country_code, population,
+				SELECT geonameid, name, asciiname, country, population,
 				       ST_Y(geom), ST_X(geom)
 				FROM cities_1000
 				WHERE name = $1
@@ -120,7 +124,7 @@ func (h *CityHandler) GetCity(w http.ResponseWriter, r *http.Request) {
 // @Accept       json
 // @Produce      json
 // @Param        name          query     string  true   "City name to search for (fuzzy match)"
-// @Param        country_code  query     string  false  "Filter by country code (ISO 2-letter)"
+// @Param        country       query     string  false  "Filter by country code (ISO 2-letter)"
 // @Param        limit         query     int     false  "Maximum number of results (default: 50, max: 200)"
 // @Param        threshold     query     number  false  "Minimum similarity threshold (default: 0.2, range: 0.0-1.0)"
 // @Success      200           {object}  map[string]interface{}  "Response with cities array and count"
@@ -137,7 +141,11 @@ func (h *CityHandler) SearchCities(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	countryCode := query.Get("country_code")
+	countryCode := query.Get("country")
+	if countryCode == "" {
+		// Legacy param name for backward compatibility
+		countryCode = query.Get("country_code")
+	}
 	limitStr := query.Get("limit")
 	thresholdStr := query.Get("threshold")
 
@@ -173,14 +181,14 @@ func (h *CityHandler) SearchCities(w http.ResponseWriter, r *http.Request) {
 	// Search both name and asciiname, order by best similarity match first, then by population
 	if countryCode != "" {
 		rows, err = h.DB.Query(ctx, `
-			SELECT geonameid, name, asciiname, country_code, population,
+			SELECT geonameid, name, asciiname, country, population,
 			       ST_Y(geom), ST_X(geom),
 			       GREATEST(
 			           similarity(name, $1),
 			           similarity(asciiname, $1)
 			       ) AS sim
 			FROM cities_1000
-			WHERE country_code = $2
+			WHERE country = $2
 			  AND (
 			       similarity(name, $1) >= $3
 			    OR similarity(asciiname, $1) >= $3
@@ -190,7 +198,7 @@ func (h *CityHandler) SearchCities(w http.ResponseWriter, r *http.Request) {
 		`, name, countryCode, threshold, limit)
 	} else {
 		rows, err = h.DB.Query(ctx, `
-			SELECT geonameid, name, asciiname, country_code, population,
+			SELECT geonameid, name, asciiname, country, population,
 			       ST_Y(geom), ST_X(geom),
 			       GREATEST(
 			           similarity(name, $1),

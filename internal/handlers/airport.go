@@ -19,7 +19,7 @@ type AirportHandler struct {
 
 // GetAirport godoc
 // @Summary      Get an airport by ID, ident, IATA code, or name
-// @Description  Retrieve a single airport by id, ident, iata, icao, or by name (optionally with country_code)
+// @Description  Retrieve a single airport by id, ident, iata, icao, or by name (optionally with country)
 // @Tags         airports
 // @Accept       json
 // @Produce      json
@@ -28,7 +28,7 @@ type AirportHandler struct {
 // @Param        iata         query     string  false  "IATA code of the airport (case-insensitive)"
 // @Param        icao         query     string  false  "ICAO code of the airport (case-insensitive)"
 // @Param        name         query     string  false  "Name of the airport"
-// @Param        country_code query     string  false  "Country code (ISO 2-letter), required if searching by name"
+// @Param        country      query     string  false  "Country code (ISO 2-letter), required if searching by name"
 // @Success      200          {object}  models.Airport
 // @Failure      400          {string}  string  "Bad Request - Invalid parameters"
 // @Failure      404          {string}  string  "Not Found - Airport not found"
@@ -39,7 +39,13 @@ func (h *AirportHandler) GetAirport(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	ident := r.URL.Query().Get("ident")
 	name := r.URL.Query().Get("name")
-	countryCode := r.URL.Query().Get("country_code")
+	countryCode := r.URL.Query().Get("country")
+	if countryCode == "" {
+		// Legacy param name for backward compatibility
+		countryCode = r.URL.Query().Get("country_code")
+	}
+	iata := r.URL.Query().Get("iata")
+	icao := r.URL.Query().Get("icao")
 
 	iata = strings.ToUpper(strings.TrimSpace(iata))
 	icao = strings.ToUpper(strings.TrimSpace(icao))
@@ -55,7 +61,7 @@ func (h *AirportHandler) GetAirport(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		err = h.DB.QueryRow(ctx, `
-			SELECT id, ident, type, name, iso_country, municipality,
+			SELECT id, ident, type, name, country, municipality,
 			       latitude, longitude, elevation, iata, icao
 			FROM airports
 			WHERE id = $1
@@ -75,7 +81,7 @@ func (h *AirportHandler) GetAirport(w http.ResponseWriter, r *http.Request) {
 
 	case ident != "":
 		err = h.DB.QueryRow(ctx, `
-			SELECT id, ident, type, name, iso_country, municipality,
+			SELECT id, ident, type, name, country, municipality,
 			       latitude, longitude, elevation, iata, icao
 			FROM airports
 			WHERE ident = $1
@@ -95,7 +101,7 @@ func (h *AirportHandler) GetAirport(w http.ResponseWriter, r *http.Request) {
 
 	case iata != "":
 		err = h.DB.QueryRow(ctx, `
-			SELECT id, ident, type, name, iso_country, municipality,
+			SELECT id, ident, type, name, country, municipality,
 			       latitude, longitude, elevation, iata, icao
 			FROM airports
 			WHERE iata = $1
@@ -115,7 +121,7 @@ func (h *AirportHandler) GetAirport(w http.ResponseWriter, r *http.Request) {
 
 	case icao != "":
 		err = h.DB.QueryRow(ctx, `
-			SELECT id, ident, type, name, iso_country, municipality,
+			SELECT id, ident, type, name, country, municipality,
 			       latitude, longitude, elevation, iata, icao
 			FROM airports
 			WHERE icao = $1
@@ -135,12 +141,12 @@ func (h *AirportHandler) GetAirport(w http.ResponseWriter, r *http.Request) {
 
 	case name != "":
 		if countryCode != "" {
-			// Search by name and country_code
+			// Search by name and country
 			err = h.DB.QueryRow(ctx, `
-				SELECT id, ident, type, name, iso_country, municipality,
-				       latitude, longitude, elevation, iata_code, icao_code
+				SELECT id, ident, type, name, country, municipality,
+				       latitude, longitude, elevation, iata, icao
 				FROM airports
-				WHERE name = $1 AND iso_country = $2
+				WHERE name = $1 AND country = $2
 				LIMIT 1
 			`, name, countryCode).Scan(
 				&airport.ID,
@@ -158,7 +164,7 @@ func (h *AirportHandler) GetAirport(w http.ResponseWriter, r *http.Request) {
 		} else {
 			// Search by name only
 			err = h.DB.QueryRow(ctx, `
-				SELECT id, ident, type, name, iso_country, municipality,
+				SELECT id, ident, type, name, country, municipality,
 				       latitude, longitude, elevation, iata, icao
 				FROM airports
 				WHERE name = $1
@@ -200,7 +206,7 @@ func (h *AirportHandler) GetAirport(w http.ResponseWriter, r *http.Request) {
 // @Param        name          query     string  false  "Airport name to search for (fuzzy match)"
 // @Param        iata          query     string  false  "Exact IATA code (case-insensitive)"
 // @Param        icao          query     string  false  "Exact ICAO code (case-insensitive)"
-// @Param        country_code  query     string  false  "Filter by country code (ISO 2-letter)"
+// @Param        country       query     string  false  "Filter by country code (ISO 2-letter)"
 // @Param        limit         query     int     false  "Maximum number of results (default: 50, max: 200)"
 // @Param        threshold     query     number  false  "Minimum similarity threshold (default: 0.2, range: 0.0-1.0)"
 // @Success      200           {object}  map[string]interface{}  "Response with airports array and count"
@@ -230,7 +236,11 @@ func (h *AirportHandler) SearchAirports(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	countryCode := query.Get("country_code")
+	countryCode := query.Get("country")
+	if countryCode == "" {
+		// Legacy param name for backward compatibility
+		countryCode = query.Get("country_code")
+	}
 	limitStr := query.Get("limit")
 	thresholdStr := query.Get("threshold")
 
@@ -265,13 +275,13 @@ func (h *AirportHandler) SearchAirports(w http.ResponseWriter, r *http.Request) 
 	if name == "" {
 		// Exact code search (IATA/ICAO)
 		rows, err = h.DB.Query(ctx, `
-			SELECT id, ident, type, name, iso_country, municipality,
+			SELECT id, ident, type, name, country, municipality,
 			       latitude, longitude, elevation, iata, icao,
 			       1.0 AS sim
 			FROM airports
 			WHERE ($1 = '' OR iata = $1)
 			  AND ($2 = '' OR icao = $2)
-			  AND ($3 = '' OR iso_country = $3)
+			  AND ($3 = '' OR country = $3)
 			ORDER BY name ASC
 			LIMIT $4
 		`, iata, icao, countryCode, limit)
@@ -279,18 +289,18 @@ func (h *AirportHandler) SearchAirports(w http.ResponseWriter, r *http.Request) 
 		// Fuzzy name search using trigram similarity
 		if countryCode != "" {
 			rows, err = h.DB.Query(ctx, `
-				SELECT id, ident, type, name, iso_country, municipality,
+				SELECT id, ident, type, name, country, municipality,
 				       latitude, longitude, elevation, iata, icao,
 				       similarity(name, $1) AS sim
 				FROM airports
-				WHERE iso_country = $2
+				WHERE country = $2
 				  AND similarity(name, $1) >= $3
 				ORDER BY sim DESC
 				LIMIT $4
 			`, name, countryCode, threshold, limit)
 		} else {
 			rows, err = h.DB.Query(ctx, `
-				SELECT id, ident, type, name, iso_country, municipality,
+				SELECT id, ident, type, name, country, municipality,
 				       latitude, longitude, elevation, iata, icao,
 				       similarity(name, $1) AS sim
 				FROM airports
