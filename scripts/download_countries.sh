@@ -13,16 +13,16 @@ FORCE=false
 
 # Parse flags
 while [[ $# -gt 0 ]]; do
-  case "$1" in
-  -f | --force)
-    FORCE=true
-    shift
-    ;;
-  *)
-    echo "Unknown option: $1"
-    exit 1
-    ;;
-  esac
+	case "$1" in
+		-f | --force)
+			FORCE=true
+			shift
+			;;
+		*)
+			echo "Unknown option: $1"
+			exit 1
+			;;
+	esac
 done
 
 echo "Country codes download"
@@ -31,13 +31,11 @@ echo "Force mode: ${FORCE}"
 mkdir -p "${DATA_DIR}"
 
 if [[ -f "${CSV_FILE}" && "${FORCE}" == false ]]; then
-  echo "country-codes.csv already exists (use -f to re-download)"
-  exit 0
+	echo "country-codes.csv already exists (use -f to re-download)"
+	exit 0
 fi
 
 echo "Downloading CSV..."
 curl -L "${CSV_URL}" -o "${CSV_FILE}"
 
 echo "country-codes.csv ready at ${CSV_FILE}"
-
-

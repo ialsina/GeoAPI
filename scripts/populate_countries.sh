@@ -11,13 +11,13 @@ DATA_DIR="${ROOT_DIR}/data/countries"
 CSV_PATH="${DATA_DIR}/country-codes.csv"
 
 if [[ ! -f "${CSV_PATH}" ]]; then
-  echo "ERROR: CSV file not found at ${CSV_PATH}. Run scripts/download_countries.sh first."
-  exit 1
+	echo "ERROR: CSV file not found at ${CSV_PATH}. Run scripts/download_countries.sh first."
+	exit 1
 fi
 
 echo "Populating countries..."
 
-docker exec -i $DB_CONTAINER psql -U geouser -d geodb <<SQL
+docker exec -i $DB_CONTAINER psql -U geouser -d geodb << SQL
 -- Optional: truncate table to re-run safely
 TRUNCATE TABLE countries;
 
@@ -109,5 +109,3 @@ SELECT COUNT(*) AS total_countries FROM countries;
 SQL
 
 echo "countries table populated."
-
-

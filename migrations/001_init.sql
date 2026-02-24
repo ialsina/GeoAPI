@@ -77,4 +77,3 @@ ALTER TABLE adm0_boundaries
 ALTER TABLE adm2_boundaries
     ADD CONSTRAINT fk_adm2_boundaries_country
     FOREIGN KEY (country_code) REFERENCES countries (iso2);
-

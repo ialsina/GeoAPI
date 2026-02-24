@@ -178,5 +178,3 @@ func (h *CountryHandler) ListCountries(w http.ResponseWriter, r *http.Request) {
 		"offset":    offset,
 	})
 }
-
-
