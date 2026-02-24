@@ -352,4 +352,3 @@ func (h *AirportHandler) SearchAirports(w http.ResponseWriter, r *http.Request) 
 		"count":    len(airports),
 	})
 }
-

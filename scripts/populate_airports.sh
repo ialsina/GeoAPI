@@ -16,7 +16,7 @@ docker cp "$CSV_PATH" "${DB_CONTAINER}:${CONTAINER_CSV_PATH}"
 
 echo "Populating airports..."
 
-docker exec -i $DB_CONTAINER psql -U geouser -d geodb <<SQL
+docker exec -i $DB_CONTAINER psql -U geouser -d geodb << SQL
 -- Optional: truncate table to re-run safely
 TRUNCATE TABLE airports;
 
@@ -66,4 +66,3 @@ echo "Cleaning up temporary file..."
 docker exec $DB_CONTAINER rm -f "$CONTAINER_CSV_PATH"
 
 echo "airports populated."
-

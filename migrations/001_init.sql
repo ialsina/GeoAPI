@@ -98,4 +98,3 @@ ALTER TABLE adm2_boundaries
 ALTER TABLE airports
     ADD CONSTRAINT fk_airports_country
     FOREIGN KEY (country) REFERENCES countries (iso2);
-

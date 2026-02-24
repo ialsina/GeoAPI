@@ -14,4 +14,3 @@ type Airport struct {
 	IATA        string  `json:"iata,omitempty" example:"SFO"`        // IATA code (3-letter)
 	ICAO        string  `json:"icao,omitempty" example:"KSFO"`       // ICAO code (4-letter)
 }
-
