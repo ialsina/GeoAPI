@@ -15,24 +15,21 @@ echo "Running migrations..."
 MIGRATIONS=$(find "$MIGRATIONS_DIR" -name "*.sql" -type f | sort)
 
 if [ -z "$MIGRATIONS" ]; then
-    echo "No migration files found in $MIGRATIONS_DIR"
-    exit 1
+	echo "No migration files found in $MIGRATIONS_DIR"
+	exit 1
 fi
 
 # Run each migration
 for migration in $MIGRATIONS; do
-    migration_name=$(basename "$migration")
-    echo "Running migration: $migration_name"
-    
-    docker exec -i $DB_CONTAINER psql -U geouser -d geodb < "$migration"
-    
-    if [ $? -eq 0 ]; then
-        echo "Successfully applied: $migration_name"
-    else
-        echo "Failed to apply: $migration_name"
-        exit 1
-    fi
+	migration_name=$(basename "$migration")
+	echo "Running migration: $migration_name"
+
+	if docker exec -i "$DB_CONTAINER" psql -U geouser -d geodb < "$migration"; then
+		echo "Successfully applied: $migration_name"
+	else
+		echo "Failed to apply: $migration_name"
+		exit 1
+	fi
 done
 
 echo "All migrations completed successfully."
-

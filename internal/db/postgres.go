@@ -25,4 +25,3 @@ func NewPool(dsn string) *pgxpool.Pool {
 
 	return pool
 }
-

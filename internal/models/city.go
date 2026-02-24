@@ -10,4 +10,3 @@ type City struct {
 	Latitude    float64 `json:"latitude" example:"37.7749"`    // Latitude coordinate
 	Longitude   float64 `json:"longitude" example:"-122.4194"` // Longitude coordinate
 }
-

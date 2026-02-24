@@ -314,4 +314,3 @@ func (h *BoundaryHandler) GetBoundary(w http.ResponseWriter, r *http.Request) {
 	// No valid parameter group is provided
 	http.Error(w, "Either 'geonameid', 'name' and 'country_code', or 'lat' and 'lon' parameters are required", http.StatusBadRequest)
 }
-

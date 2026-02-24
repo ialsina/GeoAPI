@@ -11,7 +11,7 @@ CSV_PATH="${DATA_DIR}/cities1000.txt"
 
 echo "Populating cities_1000..."
 
-docker exec -i $DB_CONTAINER psql -U geouser -d geodb <<SQL
+docker exec -i $DB_CONTAINER psql -U geouser -d geodb << SQL
 -- Optional: truncate table to re-run safely
 TRUNCATE TABLE cities_1000;
 

@@ -48,4 +48,3 @@ EXPOSE 8080
 
 USER nonroot:nonroot
 ENTRYPOINT ["/app/geoapi"]
-

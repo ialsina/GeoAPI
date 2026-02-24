@@ -13,16 +13,16 @@ FORCE=false
 
 # Parse flags
 while [[ $# -gt 0 ]]; do
-  case "$1" in
-  -f | --force)
-    FORCE=true
-    shift
-    ;;
-  *)
-    echo "Unknown option: $1"
-    exit 1
-    ;;
-  esac
+	case "$1" in
+		-f | --force)
+			FORCE=true
+			shift
+			;;
+		*)
+			echo "Unknown option: $1"
+			exit 1
+			;;
+	esac
 done
 
 echo "geoBoundaries ADM2 download"
@@ -31,8 +31,8 @@ echo "Force mode: ${FORCE}"
 mkdir -p "${DATA_DIR}"
 
 if [[ -f "${OUTPUT_FILE}" && "${FORCE}" == false ]]; then
-  echo "GeoJSON already exists (use -f to re-download)"
-  exit 0
+	echo "GeoJSON already exists (use -f to re-download)"
+	exit 0
 fi
 
 echo " Downloading GeoJSON..."

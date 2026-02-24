@@ -241,4 +241,3 @@ func (h *CityHandler) SearchCities(w http.ResponseWriter, r *http.Request) {
 		"count":  len(cities),
 	})
 }
-

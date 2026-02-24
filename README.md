@@ -89,7 +89,7 @@ The API is built using:
    ```bash
    # Download cities data
    ./scripts/download_cities1000.sh
-   
+
    # Populate cities
    ./scripts/populate_cities.sh
    ```
@@ -506,12 +506,12 @@ r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
     // Check database connection
     ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
     defer cancel()
-    
+
     if err := pool.Ping(ctx); err != nil {
         http.Error(w, "Database unavailable", http.StatusServiceUnavailable)
         return
     }
-    
+
     w.WriteHeader(http.StatusOK)
     w.Write([]byte("OK"))
 })
