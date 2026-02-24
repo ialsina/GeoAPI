@@ -14,8 +14,10 @@ set -euo pipefail
 #   Phase 4 — Standalone  city_boundaries  (no FK to countries)
 #
 # Usage:
-#   ./scripts/pipeline.sh            # skip already-downloaded files
-#   ./scripts/pipeline.sh --force    # re-download all data sources
+#   ./scripts/pipeline.sh             # skip already-downloaded files, skip applied migrations
+#   ./scripts/pipeline.sh --force     # re-download all data sources
+#   ./scripts/pipeline.sh --reset     # wipe migration tracking and re-apply all migrations
+#   ./scripts/pipeline.sh --force --reset  # full fresh start
 #
 # Prerequisites:
 #   - Docker Compose stack is running  (docker compose up -d)
@@ -26,6 +28,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/common.sh"
 
 FORCE_FLAG=""
+RESET_FLAG=""
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
@@ -33,9 +36,13 @@ while [[ $# -gt 0 ]]; do
 			FORCE_FLAG="--force"
 			shift
 			;;
+		--reset)
+			RESET_FLAG="--reset"
+			shift
+			;;
 		*)
 			echo "Unknown option: $1"
-			echo "Usage: $0 [--force]"
+			echo "Usage: $0 [--force] [--reset]"
 			exit 1
 			;;
 	esac
@@ -104,7 +111,7 @@ run download_city_boundaries.sh ${FORCE_FLAG}
 # ═════════════════════════════════════════════════════════════════════════════
 banner "Phase 1 — Migrations"
 # ═════════════════════════════════════════════════════════════════════════════
-run run_migrations.sh
+run run_migrations.sh ${RESET_FLAG}
 
 # ═════════════════════════════════════════════════════════════════════════════
 banner "Phase 2 — Root data (no FK dependencies)"

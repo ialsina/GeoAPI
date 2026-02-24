@@ -2,10 +2,22 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- Clean slate — drop all tables so re-running this migration is always safe.
+-- CASCADE handles FK dependencies automatically regardless of drop order.
+-- ─────────────────────────────────────────────────────────────────────────────
+DROP TABLE IF EXISTS airports        CASCADE;
+DROP TABLE IF EXISTS cities_1000     CASCADE;
+DROP TABLE IF EXISTS city_boundaries CASCADE;
+DROP TABLE IF EXISTS adm0_boundaries CASCADE;
+DROP TABLE IF EXISTS adm1_boundaries CASCADE;
+DROP TABLE IF EXISTS adm2_boundaries CASCADE;
+DROP TABLE IF EXISTS countries        CASCADE;
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- Countries
 -- Source: https://github.com/datasets/country-codes/blob/main/data/country-codes.csv
 -- ─────────────────────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS countries (
+CREATE TABLE countries (
     id          SERIAL PRIMARY KEY,
     -- Two-letter ISO 3166-1 alpha-2 code
     iso2        TEXT UNIQUE NOT NULL,
@@ -32,7 +44,7 @@ CREATE TABLE IF NOT EXISTS countries (
 -- GeoJSON properties present: shapeName, shapeGroup (ISO 3166-1 alpha-3), shapeType
 -- NOTE: ADM0 features have NO unique shapeID; a serial PK is used instead.
 -- ─────────────────────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS adm0_boundaries (
+CREATE TABLE adm0_boundaries (
     id          SERIAL PRIMARY KEY,
     shape_name  TEXT,
     -- ISO 3166-1 alpha-3 (shapeGroup field in source data)
@@ -45,7 +57,7 @@ CREATE TABLE IF NOT EXISTS adm0_boundaries (
 -- Source: geoBoundaries CGAZ — https://github.com/wmgeolab/geoBoundaries
 -- GeoJSON properties present: shapeID, shapeName, shapeGroup (ISO 3166-1 alpha-3), shapeType
 -- ─────────────────────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS adm1_boundaries (
+CREATE TABLE adm1_boundaries (
     -- shapeID from source data
     shape_id    TEXT PRIMARY KEY,
     shape_name  TEXT,
@@ -59,7 +71,7 @@ CREATE TABLE IF NOT EXISTS adm1_boundaries (
 -- Source: geoBoundaries CGAZ
 -- GeoJSON properties present: shapeID, shapeName, shapeGroup (ISO 3166-1 alpha-3), shapeType
 -- ─────────────────────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS adm2_boundaries (
+CREATE TABLE adm2_boundaries (
     -- shapeID from source data
     shape_id    TEXT PRIMARY KEY,
     shape_name  TEXT,
@@ -73,7 +85,7 @@ CREATE TABLE IF NOT EXISTS adm2_boundaries (
 -- Source: GeoNames cities1000 — https://download.geonames.org/export/dump/
 -- File format: tab-separated, NO header row
 -- ─────────────────────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS cities_1000 (
+CREATE TABLE cities_1000 (
     geonameid   BIGINT PRIMARY KEY,
     name        TEXT,
     asciiname   TEXT,
@@ -89,7 +101,7 @@ CREATE TABLE IF NOT EXISTS cities_1000 (
 -- City polygon boundaries
 -- Source: geojson-world-cities submodule
 -- ─────────────────────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS city_boundaries (
+CREATE TABLE city_boundaries (
     name  TEXT PRIMARY KEY,
     geom  GEOMETRY(MultiPolygon, 4326)
 );
@@ -98,7 +110,7 @@ CREATE TABLE IF NOT EXISTS city_boundaries (
 -- Airports
 -- Source: OurAirports — https://ourairports.com/data/ (git submodule)
 -- ─────────────────────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS airports (
+CREATE TABLE airports (
     id           BIGINT PRIMARY KEY,
     ident        TEXT,
     type         TEXT,
@@ -117,80 +129,50 @@ CREATE TABLE IF NOT EXISTS airports (
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Indexes
 -- ─────────────────────────────────────────────────────────────────────────────
-CREATE UNIQUE INDEX IF NOT EXISTS countries_iso2_idx        ON countries      (iso2);
-CREATE UNIQUE INDEX IF NOT EXISTS countries_iso3_idx        ON countries      (iso3);
-CREATE INDEX        IF NOT EXISTS countries_name_trgm_idx   ON countries      USING GIN (name gin_trgm_ops);
+CREATE UNIQUE INDEX countries_iso2_idx        ON countries       (iso2);
+CREATE UNIQUE INDEX countries_iso3_idx        ON countries       (iso3);
+CREATE INDEX        countries_name_trgm_idx   ON countries       USING GIN (name gin_trgm_ops);
 
-CREATE INDEX        IF NOT EXISTS cities_geom_idx           ON cities_1000    USING GIST (geom);
-CREATE INDEX        IF NOT EXISTS cities_name_trgm_idx      ON cities_1000    USING GIN  (name gin_trgm_ops);
-CREATE INDEX        IF NOT EXISTS cities_asciiname_trgm_idx ON cities_1000    USING GIN  (asciiname gin_trgm_ops);
+CREATE INDEX        cities_geom_idx           ON cities_1000     USING GIST (geom);
+CREATE INDEX        cities_name_trgm_idx      ON cities_1000     USING GIN  (name gin_trgm_ops);
+CREATE INDEX        cities_asciiname_trgm_idx ON cities_1000     USING GIN  (asciiname gin_trgm_ops);
 
-CREATE INDEX        IF NOT EXISTS adm0_geom_idx             ON adm0_boundaries USING GIST (geom);
-CREATE INDEX        IF NOT EXISTS adm1_geom_idx             ON adm1_boundaries USING GIST (geom);
-CREATE INDEX        IF NOT EXISTS adm2_geom_idx             ON adm2_boundaries USING GIST (geom);
+CREATE INDEX        adm0_geom_idx             ON adm0_boundaries USING GIST (geom);
+CREATE INDEX        adm1_geom_idx             ON adm1_boundaries USING GIST (geom);
+CREATE INDEX        adm2_geom_idx             ON adm2_boundaries USING GIST (geom);
 
-CREATE INDEX        IF NOT EXISTS city_boundaries_geom_idx  ON city_boundaries USING GIST (geom);
+CREATE INDEX        city_boundaries_geom_idx  ON city_boundaries USING GIST (geom);
 
-CREATE INDEX        IF NOT EXISTS airports_name_trgm_idx    ON airports       USING GIN (name gin_trgm_ops);
-CREATE INDEX        IF NOT EXISTS airports_ident_idx        ON airports       (ident);
-CREATE INDEX        IF NOT EXISTS airports_iata_idx         ON airports       (iata);
-CREATE INDEX        IF NOT EXISTS airports_icao_idx         ON airports       (icao);
+CREATE INDEX        airports_name_trgm_idx    ON airports        USING GIN (name gin_trgm_ops);
+CREATE INDEX        airports_ident_idx        ON airports        (ident);
+CREATE INDEX        airports_iata_idx         ON airports        (iata);
+CREATE INDEX        airports_icao_idx         ON airports        (icao);
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- Foreign keys (wrapped in DO blocks so re-running this migration is safe)
+-- Foreign keys
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- cities_1000.country → countries.iso2  (GeoNames uses alpha-2)
-DO $$ BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_cities_1000_country'
-    ) THEN
-        ALTER TABLE cities_1000
-            ADD CONSTRAINT fk_cities_1000_country
-            FOREIGN KEY (country) REFERENCES countries (iso2);
-    END IF;
-END $$;
+ALTER TABLE cities_1000
+    ADD CONSTRAINT fk_cities_1000_country
+    FOREIGN KEY (country) REFERENCES countries (iso2);
 
 -- adm0_boundaries.country → countries.iso3  (geoBoundaries shapeGroup is alpha-3)
-DO $$ BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_adm0_boundaries_country'
-    ) THEN
-        ALTER TABLE adm0_boundaries
-            ADD CONSTRAINT fk_adm0_boundaries_country
-            FOREIGN KEY (country) REFERENCES countries (iso3);
-    END IF;
-END $$;
+ALTER TABLE adm0_boundaries
+    ADD CONSTRAINT fk_adm0_boundaries_country
+    FOREIGN KEY (country) REFERENCES countries (iso3);
 
 -- adm1_boundaries.country → countries.iso3  (geoBoundaries shapeGroup is alpha-3)
-DO $$ BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_adm1_boundaries_country'
-    ) THEN
-        ALTER TABLE adm1_boundaries
-            ADD CONSTRAINT fk_adm1_boundaries_country
-            FOREIGN KEY (country) REFERENCES countries (iso3);
-    END IF;
-END $$;
+ALTER TABLE adm1_boundaries
+    ADD CONSTRAINT fk_adm1_boundaries_country
+    FOREIGN KEY (country) REFERENCES countries (iso3);
 
 -- adm2_boundaries.country → countries.iso3  (geoBoundaries shapeGroup is alpha-3)
-DO $$ BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_adm2_boundaries_country'
-    ) THEN
-        ALTER TABLE adm2_boundaries
-            ADD CONSTRAINT fk_adm2_boundaries_country
-            FOREIGN KEY (country) REFERENCES countries (iso3);
-    END IF;
-END $$;
+ALTER TABLE adm2_boundaries
+    ADD CONSTRAINT fk_adm2_boundaries_country
+    FOREIGN KEY (country) REFERENCES countries (iso3);
 
 -- airports.country → countries.iso2  (OurAirports iso_country is alpha-2)
-DO $$ BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'fk_airports_country'
-    ) THEN
-        ALTER TABLE airports
-            ADD CONSTRAINT fk_airports_country
-            FOREIGN KEY (country) REFERENCES countries (iso2);
-    END IF;
-END $$;
+ALTER TABLE airports
+    ADD CONSTRAINT fk_airports_country
+    FOREIGN KEY (country) REFERENCES countries (iso2);

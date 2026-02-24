@@ -4,13 +4,37 @@ set -euo pipefail
 # Applies all pending SQL migrations from the migrations/ directory.
 # Migrations are tracked in the schema_migrations table so each file
 # is applied exactly once, in alphabetical (version) order.
+#
+# Flags:
+#   --reset   Wipe the migration tracking table and re-apply every migration
+#             from scratch. Use this whenever the schema changes (dev only).
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/common.sh"
 
 MIGRATIONS_DIR="${ROOT_DIR}/migrations"
+RESET=false
 
-# ── Bootstrap migration tracking table ────────────────────────────────────────
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+		--reset)
+			RESET=true
+			shift
+			;;
+		*)
+			echo "Unknown option: $1"
+			exit 1
+			;;
+	esac
+done
+
+# ── Bootstrap / reset migration tracking table ────────────────────────────────
+if [[ "$RESET" == true ]]; then
+	echo "  --reset: dropping migration tracking table ..."
+	docker exec "$DB_CONTAINER" \
+		psql -U "$DB_USER" -d "$DB_NAME" -c "DROP TABLE IF EXISTS schema_migrations;"
+fi
+
 docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" << 'SQL'
 CREATE TABLE IF NOT EXISTS schema_migrations (
     filename   TEXT        PRIMARY KEY,
