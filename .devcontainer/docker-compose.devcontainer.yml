@@ -1,0 +1,17 @@
+# Devcontainer overlay for GeoAPI.
+# Merged with ../docker-compose.yml by the devcontainer CLI.
+# Adds a 'devtools' Go workspace container that shares the default project
+# network, giving it access to the PostGIS 'db' service by hostname.
+
+services:
+  devtools:
+    image: mcr.microsoft.com/devcontainers/go:1.24-bullseye
+    volumes:
+      - ../:/workspaces/GeoAPI:cached
+    command: sleep infinity
+    environment:
+      DATABASE_URL: postgres://geouser:geopass@db:5432/geodb
+      POSTGRES_USER: geouser
+      POSTGRES_PASSWORD: geopass
+      POSTGRES_DB: geodb
+      DB_HOST: db

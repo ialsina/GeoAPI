@@ -1,0 +1,43 @@
+{
+  "name": "GeoAPI",
+
+  // Starts the PostGIS database alongside the Go workspace container.
+  "dockerComposeFile": [
+    "../docker-compose.yml",
+    "docker-compose.devcontainer.yml"
+  ],
+  "service": "devtools",
+  "workspaceFolder": "/workspaces/GeoAPI",
+
+  // The standalone db service from docker-compose.yml.
+  "runServices": ["db"],
+
+  "shutdownAction": "stopCompose",
+
+  "forwardPorts": [8080, 5433],
+  "portsAttributes": {
+    "8080": { "label": "geoapi (Go)" },
+    "5433": { "label": "geo-db (PostGIS 15)" }
+  },
+
+  // Download modules and install the swagger code-generator.
+  "postCreateCommand": "go mod download && go install github.com/swaggo/swag/cmd/swag@v1.8.1 && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest",
+
+  "remoteUser": "vscode",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "golang.go",
+        "humao.rest-client",
+        "ms-azuretools.vscode-docker",
+        "editorconfig.editorconfig"
+      ],
+      "settings": {
+        "go.toolsManagement.autoUpdate": true,
+        "go.lintTool": "golangci-lint",
+        "editor.formatOnSave": true
+      }
+    }
+  }
+}
