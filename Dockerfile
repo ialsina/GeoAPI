@@ -1,3 +1,5 @@
+# GeoAPI – built image is tagged at build time (e.g. by Compose or CI).
+# Convention: <registry>/<namespace>/<project>/geoapi:<tag> (GitLab Container Registry).
 # =========================
 # Build stage
 # =========================
