@@ -14,12 +14,31 @@ DATA_DIR="${ROOT_DIR}/data"
 # ── Database ──────────────────────────────────────────────────────────────────
 # DB_CONTAINER : docker container_name (used with docker exec)
 # DB_HOST      : service hostname reachable from other containers on the same network
-DB_CONTAINER="geoapi-db"
-DB_HOST="db"
+# DOCKER_NETWORK : network for ogr2ogr/GDAL steps (must include the DB container)
+#
+# Preset by compose file: set GEOAPI_COMPOSE=dev when using docker-compose.dev.yml
+# from the repo root (or set COMPOSE_FILE to a path containing "docker-compose.dev").
+# Individual DB_CONTAINER / DB_HOST / DOCKER_NETWORK still override the preset.
 DB_NAME="geodb"
 DB_USER="geouser"
 DB_PASS="geopass"
-DOCKER_NETWORK="geoapi_default"
+
+_geoapi_compose_preset() {
+	if [[ "${GEOAPI_COMPOSE:-}" == "dev" ]]; then
+		return 0
+	fi
+	[[ -n "${COMPOSE_FILE:-}" && "${COMPOSE_FILE}" == *"docker-compose.dev"* ]]
+}
+
+if _geoapi_compose_preset; then
+	DB_CONTAINER="${DB_CONTAINER:-geo-db-dev}"
+	DB_HOST="${DB_HOST:-geo-db}"
+	DOCKER_NETWORK="${DOCKER_NETWORK:-city-orchestration_city-orchestration-dev}"
+else
+	DB_CONTAINER="${DB_CONTAINER:-geoapi-db}"
+	DB_HOST="${DB_HOST:-db}"
+	DOCKER_NETWORK="${DOCKER_NETWORK:-geoapi_default}"
+fi
 
 # ── GDAL image (ogr2ogr) ──────────────────────────────────────────────────────
 GDAL_IMAGE="ghcr.io/osgeo/gdal:alpine-small-3.8.4"
