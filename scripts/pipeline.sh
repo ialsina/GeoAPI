@@ -69,7 +69,7 @@ run() {
 }
 
 # ── Wait for DB ───────────────────────────────────────────────────────────────
-banner "Waiting for database to be ready"
+banner "Waiting for database to be ready (container: ${DB_CONTAINER})"
 for i in $(seq 1 30); do
 	if docker exec "$DB_CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME" -q 2> /dev/null; then
 		echo "Database is ready."
@@ -79,6 +79,7 @@ for i in $(seq 1 30); do
 	sleep 2
 	if [[ $i -eq 30 ]]; then
 		echo "ERROR: Database did not become ready in time."
+		echo "       Container: ${DB_CONTAINER}. Check: docker ps -a | grep -E 'geo-db|geoapi-db'"
 		exit 1
 	fi
 done
