@@ -66,8 +66,7 @@ SELECT
 FROM tmp_cities t;
 
 -- Populate alternate names by splitting the comma-separated alternatenames
--- column. Only insert names for cities that were accepted into cities_1000
--- (some are filtered out by the FK constraint on country).
+-- column. Only insert names for cities present in cities_1000.
 INSERT INTO cities_1000_alternate_names (geonameid, name)
 SELECT t.geonameid, trim(alt_name)
 FROM tmp_cities t
