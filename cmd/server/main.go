@@ -12,7 +12,7 @@ import (
 	"city-api/internal/db"
 	"city-api/internal/handlers"
 
-	_ "city-api/docs" // Swagger docs
+	_ "city-api/internal/swagger" // Generated Swagger specification
 )
 
 // @title           City API

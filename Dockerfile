@@ -29,7 +29,7 @@ RUN go mod download
 COPY . .
 
 # Generate Swagger documentation
-RUN swag init -g cmd/server/main.go -o docs
+RUN swag init -g cmd/server/main.go -o internal/swagger
 
 # Build static binary
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
@@ -42,9 +42,8 @@ FROM gcr.io/distroless/base-debian12
 
 WORKDIR /app
 
-# Copy binary and Swagger docs from builder
+# The generated Swagger specification is compiled into the binary.
 COPY --from=builder /app/geoapi /app/geoapi
-COPY --from=builder /app/docs /app/docs
 
 EXPOSE 8080
 

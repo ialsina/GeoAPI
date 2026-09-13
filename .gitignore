@@ -31,5 +31,5 @@ go.work.sum
 # .idea/
 # .vscode/
 
-# Swagger generated docs
-docs/
+# Generated Swagger package
+internal/swagger/
