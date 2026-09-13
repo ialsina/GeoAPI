@@ -114,18 +114,21 @@ pre-commit, build, configuration, and deployment details.
 
 ## Data sources
 
-- [GeoNames cities1000](https://download.geonames.org/export/dump/) for cities
-  and alternate names;
-- [geoBoundaries CGAZ](https://www.geoboundaries.org/) for ADM0, ADM1, and ADM2
-  boundaries;
-- [geojson-world-cities](https://github.com/drei01/geojson-world-cities) for
-  city polygons;
-- [OurAirports](https://ourairports.com/data/) for airports;
-- [datasets/country-codes](https://github.com/datasets/country-codes) for
-  country metadata.
+GeoAPI loads third-party geographic data through `scripts/pipeline.sh`. Download
+paths, refresh flags, and load order are documented in
+[Data pipeline](docs/data-pipeline.md).
 
-The two repository submodules retain their upstream documentation and licenses.
-See [Data pipeline](docs/data-pipeline.md) for download paths and loading order.
+| Source | Used for | How loaded | License |
+| --- | --- | --- | --- |
+| [GeoNames cities1000](https://download.geonames.org/export/dump/) | City records and alternate names | Downloaded by `scripts/download_cities1000.sh` | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) |
+| [geoBoundaries CGAZ](https://www.geoboundaries.org/) | ADM0, ADM1, and ADM2 boundaries | Downloaded by `scripts/download_geoboundaries_adm*.sh` | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) (project); individual boundaries may also be [ODbL](https://opendatacommons.org/licenses/odbl/1-0/), [CC BY-SA](https://creativecommons.org/licenses/by-sa/4.0/), or other open terms |
+| [geojson-world-cities](https://github.com/drei01/geojson-world-cities) | City polygons | Git submodule (`scripts/download_city_boundaries.sh`) | [Apache 2.0](geojson-world-cities/LICENSE) |
+| [OurAirports](https://ourairports.com/data/) | Airport records | Git submodule (`scripts/download_ourairports_data.sh`) | [The Unlicense](ourairports-data/LICENSE) |
+| [datasets/country-codes](https://github.com/datasets/country-codes) | Country metadata (ISO codes, names, capitals, etc.) | Downloaded by `scripts/download_countries.sh` | [ODC-PDDL 1.0](https://opendatacommons.org/licenses/pddl/1-0/) |
+
+The two Git submodules retain their upstream documentation and license files.
+Pipeline-downloaded files are stored under `data/` and are not committed to this
+repository.
 
 ## Contributing
 
@@ -142,5 +145,27 @@ pre-commit run --all-files
 
 ## License
 
-This repository does not currently include a project license. The bundled data
-submodules and upstream datasets have their own terms.
+### Application code
+
+GeoAPI application code — the Go HTTP service, SQL migrations, Bash pipeline
+scripts, and project documentation — is licensed under the
+[Apache License, Version 2.0](LICENSE).
+
+### Third-party data
+
+The datasets listed in [Data sources](#data-sources) are **not** licensed under
+Apache 2.0. Each retains its upstream terms. Using them in GeoAPI is compatible
+with Apache 2.0 application code, but redistribution or public use of the data
+itself (for example, via the `GET /boundary` endpoint) must comply with the
+relevant upstream license.
+
+| Source | License | Attribution / obligations |
+| --- | --- | --- |
+| GeoNames cities1000 | CC BY 4.0 | Credit [GeoNames](https://www.geonames.org/) when using or redistributing the data. |
+| geoBoundaries CGAZ | CC BY 4.0 (project); mixed per-boundary | Credit [geoBoundaries](https://www.geoboundaries.org/) and the original boundary providers. See [citation guidance](https://www.geoboundaries.org/#citation) and per-boundary metadata. Boundaries under ODbL or CC BY-SA may impose additional share-alike or access obligations when adapted or redistributed. |
+| geojson-world-cities | Apache 2.0 | Preserve upstream copyright and license notices when redistributing the dataset. |
+| OurAirports | Unlicense | No attribution required. |
+| datasets/country-codes | ODC-PDDL 1.0 | No attribution required by the dataset maintainers. Note that some upstream facts (notably ISO country codes) may be subject to separate terms; review upstream sources before commercial redistribution. |
+
+For submodule license texts, see `geojson-world-cities/LICENSE` and
+`ourairports-data/LICENSE`.
