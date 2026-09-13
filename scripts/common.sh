@@ -19,9 +19,9 @@ DATA_DIR="${ROOT_DIR}/data"
 # Preset by compose file: set GEOAPI_COMPOSE=dev when using docker-compose.dev.yml
 # from the repo root (or set COMPOSE_FILE to a path containing "docker-compose.dev").
 # Individual DB_CONTAINER / DB_HOST / DOCKER_NETWORK still override the preset.
-DB_NAME="geodb"
-DB_USER="geouser"
-DB_PASS="geopass"
+DB_NAME="${DB_NAME:-geodb}"
+DB_USER="${DB_USER:-geouser}"
+DB_PASS="${DB_PASS:-geopass}"
 
 _geoapi_compose_preset() {
 	if [[ "${GEOAPI_COMPOSE:-}" == "dev" ]]; then
