@@ -13,25 +13,21 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/common.sh"
 
-HOST_GEOJSON="${DATA_DIR}/geoBoundaries/geoBoundariesCGAZ_ADM1.geojson"
-CONTAINER_GEOJSON="/data/geoBoundaries/geoBoundariesCGAZ_ADM1.geojson"
+API_GEOJSON="${DATA_DIR}/geoBoundaries/geoBoundariesCGAZ_ADM1.geojson"
+DB_GEOJSON="${DB_DATA_DIR}/geoBoundaries/geoBoundariesCGAZ_ADM1.geojson"
 
-require_geoboundaries_geojson "${HOST_GEOJSON}"
+require_geoboundaries_geojson "${API_GEOJSON}"
+require_db_geoboundaries_geojson "${DB_GEOJSON}"
 
 # ── Step 1: Load raw GeoJSON into a staging table via ogr2ogr ─────────────────
 # -overwrite on the staging table is intentional — it has no FK constraints.
 # ogr2ogr lowercases field names: shapeID→shapeid, shapeName→shapename, etc.
 echo "Loading ADM1 GeoJSON into staging table..."
 
-docker run --rm \
-	--network "${DOCKER_NETWORK}" \
-	-v "${DATA_DIR}:/data:ro" \
-	-e PGPASSWORD="${DB_PASS}" \
-	"${GDAL_IMAGE}" \
-	ogr2ogr \
+run_gdal_ogr2ogr \
 	-f PostgreSQL \
 	"PG:dbname=${DB_NAME} user=${DB_USER} password=${DB_PASS} host=${DB_HOST}" \
-	"${CONTAINER_GEOJSON}" \
+	"${API_GEOJSON}" \
 	-nln staging_adm1 \
 	-nlt MULTIPOLYGON \
 	-lco GEOMETRY_NAME=geom \

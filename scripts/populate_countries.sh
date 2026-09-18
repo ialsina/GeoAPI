@@ -12,6 +12,7 @@ HOST_CSV="${DATA_DIR}/countries/country-codes.csv"
 CONTAINER_CSV="/data/countries/country-codes.csv"
 
 require_file "${HOST_CSV}"
+require_db_data_file "${CONTAINER_CSV}" "${HOST_CSV}"
 
 echo "Populating countries..."
 

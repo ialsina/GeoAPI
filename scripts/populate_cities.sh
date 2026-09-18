@@ -14,6 +14,7 @@ HOST_TXT="${DATA_DIR}/cities1000/cities1000.txt"
 CONTAINER_TXT="/data/cities1000/cities1000.txt"
 
 require_file "${HOST_TXT}"
+require_db_data_file "${CONTAINER_TXT}" "${HOST_TXT}"
 
 echo "Populating cities_1000..."
 

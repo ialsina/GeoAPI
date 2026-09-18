@@ -29,6 +29,7 @@ services:
       POSTGRES_PASSWORD: geopass
       DB_HOST: db
       DB_CONTAINER: geoapi-db
+      GEOAPI_API_CONTAINER: geoapi-api
       AUTO_POPULATE_DATA: ${AUTO_POPULATE_DATA:-true}
       FORCE_POPULATE: ${FORCE_POPULATE:-false}
       GEOAPI_DATA_DIR: /app/data

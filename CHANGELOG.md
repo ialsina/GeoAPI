@@ -49,6 +49,11 @@ Pre-release versions are not listed separately.
 - geoBoundaries download scripts now fetch CGAZ GeoJSON from
   `media.githubusercontent.com` instead of `github.com/raw/`, which previously
   saved Git LFS pointer stubs that GDAL could not open.
+- GDAL `ogr2ogr` steps now use `docker run --volumes-from geoapi-api` instead of
+  `-v /app/data:/data`, which previously mounted a non-existent host path when
+  the pipeline ran inside the API container via the Docker socket.
+- Population scripts verify dataset files on the PostGIS `/data` mount and reject
+  Git LFS pointer stubs before `COPY FROM` or `ogr2ogr`.
 
 ## [0.2.0] - 2026-09-13
 

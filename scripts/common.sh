@@ -10,6 +10,10 @@
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPTS_DIR}/.." && pwd)"
 DATA_DIR="${GEOAPI_DATA_DIR:-${ROOT_DIR}/data}"
+# Container name for --volumes-from when spawning GDAL from inside geoapi-api.
+GEOAPI_API_CONTAINER="${GEOAPI_API_CONTAINER:-geoapi-api}"
+# Path prefix inside the PostGIS container (see docker-compose /data mount).
+DB_DATA_DIR="/data"
 
 # ── Database ──────────────────────────────────────────────────────────────────
 # DB_CONTAINER : docker container_name (used with docker exec)
@@ -96,6 +100,49 @@ require_geoboundaries_geojson() {
 	echo "       The file is empty or looks like a Git LFS pointer."
 	echo "       Re-run the corresponding download script with --force."
 	exit 1
+}
+
+# Die unless a file is visible on the PostGIS /data bind mount (used by COPY FROM).
+require_db_data_file() {
+	local container_path="$1"
+	local label="${2:-${container_path}}"
+
+	if docker exec "${DB_CONTAINER}" test -f "${container_path}" 2> /dev/null; then
+		return 0
+	fi
+
+	echo "ERROR: ${label} is not visible inside ${DB_CONTAINER} at ${container_path}"
+	echo "       Pipeline DATA_DIR: ${DATA_DIR}"
+	echo "       PostGIS and geoapi-api must bind-mount the same host directory."
+	exit 1
+}
+
+# Validate geoBoundaries content on the PostGIS /data mount before ogr2ogr.
+require_db_geoboundaries_geojson() {
+	local container_path="$1"
+	local header=""
+
+	require_db_data_file "${container_path}"
+	header="$(docker exec "${DB_CONTAINER}" head -c 128 "${container_path}" 2> /dev/null || true)"
+	if echo "${header}" | grep -q 'git-lfs.github.com/spec/v1'; then
+		echo "ERROR: ${container_path} on ${DB_CONTAINER} is a Git LFS pointer."
+		echo "       Re-run the geoBoundaries download scripts with --force."
+		exit 1
+	fi
+	if ! echo "${header}" | grep -q '{'; then
+		echo "ERROR: ${container_path} on ${DB_CONTAINER} is not valid GeoJSON."
+		exit 1
+	fi
+}
+
+# Run ogr2ogr in GDAL sharing geoapi-api's bind mounts (avoids host path guessing).
+run_gdal_ogr2ogr() {
+	docker run --rm \
+		--network "${DOCKER_NETWORK}" \
+		--volumes-from "${GEOAPI_API_CONTAINER}:ro" \
+		-e PGPASSWORD="${DB_PASS}" \
+		"${GDAL_IMAGE}" \
+		ogr2ogr "$@"
 }
 
 # Prefixed log line (uses the calling script's basename).
