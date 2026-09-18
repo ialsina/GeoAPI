@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Pre-release versions are not listed separately.
 
+## [Unreleased]
+
+### Added
+
+- Container startup data initialization through `docker-entrypoint.sh`, driven
+  by `AUTO_POPULATE_DATA` and `FORCE_POPULATE`.
+- Idempotent first-boot detection that skips `scripts/pipeline.sh` when the
+  `countries` table is already populated.
+- `GEOAPI_DATA_DIR` support in `scripts/common.sh` for configurable download
+  paths inside containers.
+- Docker Compose health checks, database readiness gating, and `.env.example`
+  variables for automatic population.
+
+### Changed
+
+- Replaced the distroless runtime image with a Debian-based stage that includes
+  `curl`, `git`, and the Docker CLI so the in-container pipeline can download
+  datasets and run GDAL import steps.
+- Docker Compose now persists downloaded datasets on the host through
+  `./data:/app/data`, mounts the same directory read-only into PostGIS at
+  `/data`, and exposes `/var/run/docker.sock` for pipeline operations.
+
 ## [0.2.0] - 2026-09-13
 
 ### Added

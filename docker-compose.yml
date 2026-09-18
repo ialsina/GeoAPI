@@ -11,6 +11,12 @@ services:
       - ./data:/data:ro
     ports:
       - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geouser -d geodb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   api:
     image: ${CI_REGISTRY_IMAGE:-${REGISTRY_IMAGE:-geoapi}}/api:${IMAGE_TAG:-latest}
@@ -18,12 +24,28 @@ services:
     container_name: geoapi-api
     environment:
       DATABASE_URL: postgres://geouser:geopass@db:5432/geodb
+      POSTGRES_DB: geodb
+      POSTGRES_USER: geouser
+      POSTGRES_PASSWORD: geopass
+      DB_HOST: db
+      DB_CONTAINER: geoapi-db
+      AUTO_POPULATE_DATA: ${AUTO_POPULATE_DATA:-true}
+      FORCE_POPULATE: ${FORCE_POPULATE:-false}
+      GEOAPI_DATA_DIR: /app/data
     volumes:
-      - ./data:/data:ro
+      - ./data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "8080:8080"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 30m
 
 volumes:
   postgres_data:

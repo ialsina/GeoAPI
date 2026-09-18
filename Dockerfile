@@ -38,14 +38,30 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 # =========================
 # Runtime stage
 # =========================
-FROM gcr.io/distroless/base-debian12
+FROM debian:bookworm-slim
 
 WORKDIR /app
 
-# The generated Swagger specification is compiled into the binary.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        git \
+        docker.io \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=builder /app/geoapi /app/geoapi
+COPY --from=builder /app/scripts /app/scripts
+COPY --from=builder /app/migrations /app/migrations
+COPY --from=builder /app/.git /app/.git
+COPY --from=builder /app/.gitmodules /app/.gitmodules
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+
+RUN chmod +x /app/docker-entrypoint.sh /app/scripts/*.sh && \
+    mkdir -p /app/data
+
+ENV GEOAPI_DATA_DIR=/app/data
 
 EXPOSE 8080
 
-USER nonroot:nonroot
-ENTRYPOINT ["/app/geoapi"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

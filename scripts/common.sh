@@ -9,7 +9,7 @@
 # Always resolved relative to this file so scripts can be called from anywhere.
 SCRIPTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPTS_DIR}/.." && pwd)"
-DATA_DIR="${ROOT_DIR}/data"
+DATA_DIR="${GEOAPI_DATA_DIR:-${ROOT_DIR}/data}"
 
 # ── Database ──────────────────────────────────────────────────────────────────
 # DB_CONTAINER : docker container_name (used with docker exec)
