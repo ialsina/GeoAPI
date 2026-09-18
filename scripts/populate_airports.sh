@@ -18,7 +18,7 @@ docker cp "$HOST_CSV" "${DB_CONTAINER}:${CONTAINER_CSV}"
 
 echo "Populating airports..."
 
-docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" << SQL
+docker exec -i "$DB_CONTAINER" psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" << SQL
 TRUNCATE TABLE airports;
 
 -- Temporary table matching all columns in the OurAirports airports.csv

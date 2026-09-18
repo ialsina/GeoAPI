@@ -43,7 +43,7 @@ docker run --rm \
 # territories) are skipped to satisfy the FK constraint.
 echo "Transferring ADM1 data to adm1_boundaries..."
 
-docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" << SQL
+docker exec -i "$DB_CONTAINER" psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" << SQL
 TRUNCATE TABLE adm1_boundaries;
 
 INSERT INTO adm1_boundaries (shape_id, shape_name, country, geom)

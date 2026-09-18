@@ -32,10 +32,12 @@ done
 if [[ "$RESET" == true ]]; then
 	echo "  --reset: dropping migration tracking table ..."
 	docker exec "$DB_CONTAINER" \
-		psql -U "$DB_USER" -d "$DB_NAME" -c "DROP TABLE IF EXISTS schema_migrations;"
+		psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" \
+		-c "DROP TABLE IF EXISTS schema_migrations;"
 fi
 
-docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" << 'SQL'
+docker exec -i "$DB_CONTAINER" \
+	psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" << 'SQL'
 CREATE TABLE IF NOT EXISTS schema_migrations (
     filename   TEXT        PRIMARY KEY,
     applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -49,7 +51,7 @@ while IFS= read -r -d '' migration; do
 	name=$(basename "$migration")
 
 	applied=$(docker exec "$DB_CONTAINER" \
-		psql -U "$DB_USER" -d "$DB_NAME" -t -c \
+		psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" -t -c \
 		"SELECT COUNT(*) FROM schema_migrations WHERE filename = '${name}';" |
 		tr -d '[:space:]')
 
@@ -59,9 +61,10 @@ while IFS= read -r -d '' migration; do
 	fi
 
 	echo "  apply ${name} ..."
-	if docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" < "$migration"; then
+	if docker exec -i "$DB_CONTAINER" \
+		psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" < "$migration"; then
 		docker exec "$DB_CONTAINER" \
-			psql -U "$DB_USER" -d "$DB_NAME" -c \
+			psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" -c \
 			"INSERT INTO schema_migrations (filename) VALUES ('${name}');"
 		echo "  done  ${name}"
 	else

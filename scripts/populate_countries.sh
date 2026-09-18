@@ -15,7 +15,7 @@ require_file "${HOST_CSV}"
 
 echo "Populating countries..."
 
-docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" << SQL
+docker exec -i "$DB_CONTAINER" psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" << SQL
 -- Re-run safe: CASCADE drops dependent FK rows so we start clean.
 TRUNCATE TABLE countries CASCADE;
 

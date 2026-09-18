@@ -17,9 +17,9 @@ require_file "${HOST_TXT}"
 
 echo "Populating cities_1000..."
 
-docker exec -i "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" << SQL
-TRUNCATE TABLE cities_1000_alternate_names;
-TRUNCATE TABLE cities_1000;
+docker exec -i "$DB_CONTAINER" psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" << SQL
+-- PostgreSQL requires FK-related tables to be truncated in one statement.
+TRUNCATE TABLE cities_1000_alternate_names, cities_1000;
 
 -- Temporary table matching all 19 columns of the GeoNames cities1000 format
 -- (tab-separated, no header — see https://download.geonames.org/export/dump/readme.txt)
