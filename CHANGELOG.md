@@ -27,6 +27,9 @@ Pre-release versions are not listed separately.
 - Docker Compose now persists downloaded datasets on the host through
   `./data:/app/data`, mounts the same directory read-only into PostGIS at
   `/data`, and exposes `/var/run/docker.sock` for pipeline operations.
+- Aligned both Dockerfile stages on Debian Bookworm (`golang:1.24-bookworm`
+  builder, `debian:bookworm-slim` runtime), replacing bullseye in the build
+  stage.
 
 ## [0.2.0] - 2026-09-13
 
