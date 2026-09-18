@@ -29,6 +29,32 @@ _is_truthy() {
 	esac
 }
 
+_db_table_count() {
+	local table="$1"
+	docker exec "${DB_CONTAINER}" psql -v ON_ERROR_STOP=1 -U "${DB_USER}" -d "${DB_NAME}" -tAc \
+		"SELECT COUNT(*) FROM ${table};" 2> /dev/null | tr -d '[:space:]' || true
+}
+
+_is_database_populated() {
+	local countries cities
+
+	countries="$(_db_table_count countries)"
+	cities="$(_db_table_count cities_1000)"
+
+	if [[ -z "${countries}" || "${countries}" == "0" ]]; then
+		echo "Database appears empty (countries=${countries:-unknown})."
+		return 1
+	fi
+
+	if [[ -z "${cities}" || "${cities}" == "0" ]]; then
+		echo "Database is incomplete (${countries} countries, ${cities:-0} cities)."
+		return 1
+	fi
+
+	echo "Database already populated (${countries} countries, ${cities} cities)."
+	return 0
+}
+
 _should_run_pipeline() {
 	if ! _is_truthy "${AUTO_POPULATE_DATA:-false}"; then
 		echo "AUTO_POPULATE_DATA is disabled — skipping data pipeline."
@@ -40,19 +66,13 @@ _should_run_pipeline() {
 		return 0
 	fi
 
-	local count=""
-	count="$(
-		docker exec "${DB_CONTAINER}" psql -U "${DB_USER}" -d "${DB_NAME}" -tAc \
-			"SELECT COUNT(*) FROM countries;" 2> /dev/null | tr -d '[:space:]' || true
-	)"
-
-	if [[ -z "${count}" || "${count}" == "0" ]]; then
-		echo "Database appears empty — running data pipeline."
-		return 0
+	if _is_database_populated; then
+		echo "Skipping data pipeline."
+		return 1
 	fi
 
-	echo "Database already populated (${count} countries) — skipping pipeline."
-	return 1
+	echo "Running data pipeline to complete database initialization."
+	return 0
 }
 
 if _should_run_pipeline; then

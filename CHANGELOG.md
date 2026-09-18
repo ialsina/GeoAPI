@@ -12,8 +12,8 @@ Pre-release versions are not listed separately.
 
 - Container startup data initialization through `docker-entrypoint.sh`, driven
   by `AUTO_POPULATE_DATA` and `FORCE_POPULATE`.
-- Idempotent first-boot detection that skips `scripts/pipeline.sh` when the
-  `countries` table is already populated.
+- Idempotent first-boot detection that skips `scripts/pipeline.sh` when core
+  tables (`countries`, `cities_1000`) are already populated.
 - `GEOAPI_DATA_DIR` support in `scripts/common.sh` for configurable download
   paths inside containers.
 - Docker Compose health checks, database readiness gating, and `.env.example`
@@ -37,6 +37,15 @@ Pre-release versions are not listed separately.
   static Docker CLI (27.5.1). The distro package speaks API ~1.41 and fails
   against modern Docker daemons (minimum API 1.44+), which caused the startup
   pipeline to hang retrying `docker exec` during database readiness checks.
+- Population scripts now truncate `cities_1000` and
+  `cities_1000_alternate_names` in a single statement to satisfy PostgreSQL
+  foreign-key constraints.
+- All migration and population `psql` invocations use `ON_ERROR_STOP=1` so a
+  failed SQL step aborts the pipeline instead of leaving a partially imported
+  database.
+- `docker-entrypoint.sh` no longer treats a populated `countries` table as proof
+  of a complete import; it also requires `cities_1000` rows and automatically
+  re-runs the pipeline when the database is only partially initialized.
 
 ## [0.2.0] - 2026-09-13
 
