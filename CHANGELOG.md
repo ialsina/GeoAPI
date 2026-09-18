@@ -31,6 +31,13 @@ Pre-release versions are not listed separately.
   builder, `debian:bookworm-slim` runtime), replacing bullseye in the build
   stage.
 
+### Fixed
+
+- Replaced the Debian `docker.io` package in the runtime image with the official
+  static Docker CLI (27.5.1). The distro package speaks API ~1.41 and fails
+  against modern Docker daemons (minimum API 1.44+), which caused the startup
+  pipeline to hang retrying `docker exec` during database readiness checks.
+
 ## [0.2.0] - 2026-09-13
 
 ### Added

@@ -42,12 +42,23 @@ FROM debian:bookworm-slim
 
 WORKDIR /app
 
+# Official static CLI (Debian docker.io is ~API 1.41 and fails against modern daemons).
+ARG DOCKER_CLI_VERSION=27.5.1
+ARG TARGETARCH=amd64
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
         git \
-        docker.io \
+    && case "${TARGETARCH}" in \
+        amd64) DOCKER_ARCH=x86_64 ;; \
+        arm64) DOCKER_ARCH=aarch64 ;; \
+        *) echo "unsupported architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac \
+    && curl -fsSL "https://download.docker.com/linux/static/stable/${DOCKER_ARCH}/docker-${DOCKER_CLI_VERSION}.tgz" \
+    | tar -xzC /usr/local/bin --strip-components=1 docker/docker \
+    && docker --version \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/geoapi /app/geoapi
