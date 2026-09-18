@@ -16,7 +16,7 @@ source "${SCRIPT_DIR}/common.sh"
 HOST_GEOJSON="${DATA_DIR}/geoBoundaries/geoBoundariesCGAZ_ADM2.geojson"
 CONTAINER_GEOJSON="/data/geoBoundaries/geoBoundariesCGAZ_ADM2.geojson"
 
-require_file "${HOST_GEOJSON}"
+require_geoboundaries_geojson "${HOST_GEOJSON}"
 
 # ── Step 1: Load raw GeoJSON into a staging table via ogr2ogr ─────────────────
 # -overwrite on the staging table is intentional — it has no FK constraints.

@@ -55,6 +55,24 @@ fi
 # ── GDAL image (ogr2ogr) ──────────────────────────────────────────────────────
 GDAL_IMAGE="ghcr.io/osgeo/gdal:alpine-small-3.8.4"
 
+# geoBoundaries CGAZ GeoJSON files are stored in Git LFS. github.com/raw/ URLs
+# return pointer stubs that GDAL cannot read; media.githubusercontent.com serves
+# the actual file bytes.
+geoboundaries_cgaz_url() {
+	local level="$1"
+	echo "https://media.githubusercontent.com/media/wmgeolab/geoBoundaries/main/releaseData/CGAZ/geoBoundariesCGAZ_${level}.geojson"
+}
+
+# Return 0 when the file looks like a real GeoJSON FeatureCollection.
+is_valid_geoboundaries_geojson() {
+	local file="$1"
+	[[ -s "${file}" ]] || return 1
+	if head -c 128 "${file}" | grep -q 'git-lfs.github.com/spec/v1'; then
+		return 1
+	fi
+	head -c 1 "${file}" | grep -q '{'
+}
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 # Die with a message if a required file is absent.
@@ -65,6 +83,19 @@ require_file() {
 		echo "       Run the corresponding download script first."
 		exit 1
 	fi
+}
+
+# Die if a geoBoundaries GeoJSON file is missing or is a Git LFS pointer stub.
+require_geoboundaries_geojson() {
+	local file="$1"
+	require_file "${file}"
+	if is_valid_geoboundaries_geojson "${file}"; then
+		return 0
+	fi
+	echo "ERROR: Invalid geoBoundaries GeoJSON: ${file}"
+	echo "       The file is empty or looks like a Git LFS pointer."
+	echo "       Re-run the corresponding download script with --force."
+	exit 1
 }
 
 # Prefixed log line (uses the calling script's basename).

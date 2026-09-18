@@ -46,6 +46,9 @@ Pre-release versions are not listed separately.
 - `docker-entrypoint.sh` no longer treats a populated `countries` table as proof
   of a complete import; it also requires `cities_1000` rows and automatically
   re-runs the pipeline when the database is only partially initialized.
+- geoBoundaries download scripts now fetch CGAZ GeoJSON from
+  `media.githubusercontent.com` instead of `github.com/raw/`, which previously
+  saved Git LFS pointer stubs that GDAL could not open.
 
 ## [0.2.0] - 2026-09-13
 
