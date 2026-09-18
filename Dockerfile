@@ -51,6 +51,7 @@ RUN apt-get update && \
         ca-certificates \
         curl \
         git \
+        unzip \
     && case "${TARGETARCH}" in \
         amd64) DOCKER_ARCH=x86_64 ;; \
         arm64) DOCKER_ARCH=aarch64 ;; \
