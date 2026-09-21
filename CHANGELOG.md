@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Pre-release versions are not listed separately.
 
+## [Unreleased]
+
+### Fixed
+
+- geoBoundaries downloads now retry on failure, write to a `.partial` file, verify
+  size and GDAL readability before promotion, and replace truncated copies on the
+  next pipeline run
+
 ## [0.3.0] - 2026-09-19
 
 ### Added
