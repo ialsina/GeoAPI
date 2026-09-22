@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Pre-release versions are not listed separately.
 
-## [Unreleased]
+## [0.3.1] = 2026-09-22
 
 ### Fixed
 
