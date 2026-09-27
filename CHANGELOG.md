@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Pre-release versions are not listed separately.
 
+## [Unreleased]
+
+### Added
+
+- `GET /city` responses now include GeoNames elevation and alternate names when
+  available.
+- Added an additive city-elevation migration that backfills existing databases
+  from the retained GeoNames `cities1000` source file.
+
+### Changed
+
+- City imports now retain elevation from GeoNames.
+- Container startup now applies pending migrations even when the database is
+  already populated and the full data pipeline is skipped.
+
 ## [0.3.1] = 2026-09-22
 
 ### Fixed

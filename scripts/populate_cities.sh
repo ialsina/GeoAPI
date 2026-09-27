@@ -53,7 +53,10 @@ DELIMITER E'\t'
 CSV;
 
 -- Set country to NULL when country_code is not in countries (disputed territories, unused codes)
-INSERT INTO cities_1000 (geonameid, name, asciiname, country, population, latitude, longitude, geom)
+INSERT INTO cities_1000 (
+    geonameid, name, asciiname, country, population, elevation,
+    latitude, longitude, geom
+)
 SELECT
     t.geonameid,
     t.name,
@@ -61,6 +64,7 @@ SELECT
     CASE WHEN t.country_code IN (SELECT iso2 FROM countries WHERE iso2 IS NOT NULL)
          THEN t.country_code END,
     t.population,
+    t.elevation,
     t.latitude,
     t.longitude,
     ST_SetSRID(ST_MakePoint(t.longitude, t.latitude), 4326)

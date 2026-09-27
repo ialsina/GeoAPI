@@ -102,6 +102,10 @@ if _should_run_pipeline; then
 		pipeline_args+=(--force)
 	fi
 	bash /app/scripts/pipeline.sh "${pipeline_args[@]}"
+else
+	# A populated database can still have pending additive migrations after an
+	# image upgrade. The full pipeline is unnecessary, but schema updates are not.
+	bash /app/scripts/run_migrations.sh
 fi
 
 exec /app/geoapi

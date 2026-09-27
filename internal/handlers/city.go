@@ -142,7 +142,28 @@ func (h *CityHandler) GetCity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err = h.loadCityDetails(ctx, &city); err != nil {
+		http.Error(w, "Error retrieving city details", http.StatusInternalServerError)
+		return
+	}
+
 	render.JSON(w, r, city)
+}
+
+func (h *CityHandler) loadCityDetails(ctx context.Context, city *models.City) error {
+	return h.DB.QueryRow(ctx, `
+		SELECT c.elevation,
+		       COALESCE(
+		           array_agg(an.name ORDER BY an.name)
+		               FILTER (WHERE an.name IS NOT NULL),
+		           '{}'::text[]
+		       )
+		FROM cities_1000 c
+		LEFT JOIN cities_1000_alternate_names an
+		       ON an.geonameid = c.geonameid
+		WHERE c.geonameid = $1
+		GROUP BY c.geonameid, c.elevation
+	`, city.GeonameID).Scan(&city.Elevation, &city.AlternateNames)
 }
 
 // SearchCities godoc
