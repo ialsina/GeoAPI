@@ -20,6 +20,8 @@ Pre-release versions are not listed separately.
 ### Changed
 
 - Updated go version to 1.24.0
+- Updated to submodule `ourairports-data` commit `64af129`.
+
 
 ## [0.4.0] - 2026-09-28
 
