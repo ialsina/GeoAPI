@@ -26,6 +26,11 @@ Pre-release versions are not listed separately.
 - `docker-compose.yml` default API image is now `ialsina/geoapi` (still overridable
   via `IMAGE_TAG`); replaces the former `CI_REGISTRY_IMAGE` and `REGISTRY_IMAGE`.
 
+### Fixed
+
+- Airport list and lookup handlers scan nullable database columns (missing IATA,
+  ICAO, text fields, or elevation) so endpoints such as `GET /airports/nearby`
+  no longer return 500 when a result row contains SQL `NULL` values.
 
 ## [0.4.0] - 2026-09-28
 

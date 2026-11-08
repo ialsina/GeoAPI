@@ -60,128 +60,55 @@ func (h *AirportHandler) GetAirport(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid 'id' parameter", http.StatusBadRequest)
 			return
 		}
-		err = h.DB.QueryRow(ctx, `
+		airport, err = scanAirportFromRow(h.DB.QueryRow(ctx, `
 			SELECT id, ident, type, name, country, municipality,
 			       latitude, longitude, elevation, iata, icao
 			FROM airports
 			WHERE id = $1
-		`, parsedID).Scan(
-			&airport.ID,
-			&airport.Ident,
-			&airport.Type,
-			&airport.Name,
-			&airport.Country,
-			&airport.Municipality,
-			&airport.Latitude,
-			&airport.Longitude,
-			&airport.Elevation,
-			&airport.IATA,
-			&airport.ICAO,
-		)
+		`, parsedID))
 
 	case ident != "":
-		err = h.DB.QueryRow(ctx, `
+		airport, err = scanAirportFromRow(h.DB.QueryRow(ctx, `
 			SELECT id, ident, type, name, country, municipality,
 			       latitude, longitude, elevation, iata, icao
 			FROM airports
 			WHERE ident = $1
-		`, ident).Scan(
-			&airport.ID,
-			&airport.Ident,
-			&airport.Type,
-			&airport.Name,
-			&airport.Country,
-			&airport.Municipality,
-			&airport.Latitude,
-			&airport.Longitude,
-			&airport.Elevation,
-			&airport.IATA,
-			&airport.ICAO,
-		)
+		`, ident))
 
 	case iata != "":
-		err = h.DB.QueryRow(ctx, `
+		airport, err = scanAirportFromRow(h.DB.QueryRow(ctx, `
 			SELECT id, ident, type, name, country, municipality,
 			       latitude, longitude, elevation, iata, icao
 			FROM airports
 			WHERE iata = $1
-		`, iata).Scan(
-			&airport.ID,
-			&airport.Ident,
-			&airport.Type,
-			&airport.Name,
-			&airport.Country,
-			&airport.Municipality,
-			&airport.Latitude,
-			&airport.Longitude,
-			&airport.Elevation,
-			&airport.IATA,
-			&airport.ICAO,
-		)
+		`, iata))
 
 	case icao != "":
-		err = h.DB.QueryRow(ctx, `
+		airport, err = scanAirportFromRow(h.DB.QueryRow(ctx, `
 			SELECT id, ident, type, name, country, municipality,
 			       latitude, longitude, elevation, iata, icao
 			FROM airports
 			WHERE icao = $1
-		`, icao).Scan(
-			&airport.ID,
-			&airport.Ident,
-			&airport.Type,
-			&airport.Name,
-			&airport.Country,
-			&airport.Municipality,
-			&airport.Latitude,
-			&airport.Longitude,
-			&airport.Elevation,
-			&airport.IATA,
-			&airport.ICAO,
-		)
+		`, icao))
 
 	case name != "":
 		if countryCode != "" {
 			// Search by name and country
-			err = h.DB.QueryRow(ctx, `
+			airport, err = scanAirportFromRow(h.DB.QueryRow(ctx, `
 				SELECT id, ident, type, name, country, municipality,
 				       latitude, longitude, elevation, iata, icao
 				FROM airports
 				WHERE name = $1 AND country = $2
 				LIMIT 1
-			`, name, countryCode).Scan(
-				&airport.ID,
-				&airport.Ident,
-				&airport.Type,
-				&airport.Name,
-				&airport.Country,
-				&airport.Municipality,
-				&airport.Latitude,
-				&airport.Longitude,
-				&airport.Elevation,
-				&airport.IATA,
-				&airport.ICAO,
-			)
+			`, name, countryCode))
 		} else {
-			// Search by name only
-			err = h.DB.QueryRow(ctx, `
+			airport, err = scanAirportFromRow(h.DB.QueryRow(ctx, `
 				SELECT id, ident, type, name, country, municipality,
 				       latitude, longitude, elevation, iata, icao
 				FROM airports
 				WHERE name = $1
 				LIMIT 1
-			`, name).Scan(
-				&airport.ID,
-				&airport.Ident,
-				&airport.Type,
-				&airport.Name,
-				&airport.Country,
-				&airport.Municipality,
-				&airport.Latitude,
-				&airport.Longitude,
-				&airport.Elevation,
-				&airport.IATA,
-				&airport.ICAO,
-			)
+			`, name))
 		}
 
 	default:
@@ -309,22 +236,8 @@ func (h *AirportHandler) SearchAirports(w http.ResponseWriter, r *http.Request) 
 
 	var airports []models.Airport
 	for rows.Next() {
-		var airport models.Airport
-		var similarity float64 // Temporary variable to hold similarity score
-		err := rows.Scan(
-			&airport.ID,
-			&airport.Ident,
-			&airport.Type,
-			&airport.Name,
-			&airport.Country,
-			&airport.Municipality,
-			&airport.Latitude,
-			&airport.Longitude,
-			&airport.Elevation,
-			&airport.IATA,
-			&airport.ICAO,
-			&similarity, // Scan similarity score but don't use it
-		)
+		var similarity float64
+		airport, err := scanAirportFromRows(rows, &similarity)
 		if err != nil {
 			http.Error(w, "Error reading airport data", http.StatusInternalServerError)
 			return
@@ -418,25 +331,13 @@ func (h *AirportHandler) NearbyAirports(w http.ResponseWriter, r *http.Request) 
 
 	var airports []models.Airport
 	for rows.Next() {
-		var airport models.Airport
-		err := rows.Scan(
-			&airport.ID,
-			&airport.Ident,
-			&airport.Type,
-			&airport.Name,
-			&airport.Country,
-			&airport.Municipality,
-			&airport.Latitude,
-			&airport.Longitude,
-			&airport.Elevation,
-			&airport.IATA,
-			&airport.ICAO,
-			&airport.DistanceM,
-		)
+		var distanceM float64
+		airport, err := scanAirportFromRows(rows, &distanceM)
 		if err != nil {
 			http.Error(w, "Error reading airport data", http.StatusInternalServerError)
 			return
 		}
+		airport.DistanceM = distanceM
 		airports = append(airports, airport)
 	}
 	if err = rows.Err(); err != nil {
