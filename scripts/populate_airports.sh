@@ -63,8 +63,22 @@ SELECT
     latitude_deg,
     longitude_deg,
     CASE WHEN elevation_ft IS NOT NULL THEN elevation_ft * 0.3048 END,
-    UPPER(NULLIF(iata_code, '')),
-    UPPER(NULLIF(icao_code, '')),
+    COALESCE(
+        UPPER(NULLIF(TRIM(iata_code), '')),
+        CASE WHEN UPPER(TRIM(ident)) ~ '^[A-Z]{3}$' THEN UPPER(TRIM(ident)) END,
+        (SELECT UPPER(TRIM(p))
+         FROM unnest(string_to_array(COALESCE(keywords, ''), ',')) AS p
+         WHERE UPPER(TRIM(p)) ~ '^[A-Z]{3}$'
+         LIMIT 1)
+    ),
+    COALESCE(
+        UPPER(NULLIF(TRIM(icao_code), '')),
+        CASE WHEN UPPER(TRIM(ident)) ~ '^[A-Z]{4}$' THEN UPPER(TRIM(ident)) END,
+        (SELECT UPPER(TRIM(p))
+         FROM unnest(string_to_array(COALESCE(keywords, ''), ',')) AS p
+         WHERE UPPER(TRIM(p)) ~ '^[A-Z]{4}$'
+         LIMIT 1)
+    ),
     ST_SetSRID(ST_MakePoint(longitude_deg, latitude_deg), 4326)
 FROM tmp_airports
 WHERE latitude_deg IS NOT NULL

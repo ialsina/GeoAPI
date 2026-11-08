@@ -19,6 +19,8 @@ Pre-release versions are not listed separately.
 
 ### Changed
 
+- Airport load backfills missing IATA and ICAO from `ident` (exact 3- or
+  4-letter codes) and comma-separated `keywords` in OurAirports `airports.csv`.
 - Updated go version to 1.24.0
 - Updated to submodule `ourairports-data` commit `64af129`.
 
