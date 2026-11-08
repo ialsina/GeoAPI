@@ -8,6 +8,15 @@ Pre-release versions are not listed separately.
 
 ## [Unreleased]
 
+### Added
+
+- `GET /cities/nearby` — list cities in a bounding box or radius, ordered by
+  population.
+- `GET /airports/nearby` — list airports in a bounding box or radius, ordered by
+  distance; responses include `distance_m`.
+- Migration `003_airports_geom.sql` adds a PostGIS point `geom` column and GIST
+  index on `airports` for spatial queries.
+
 ### Changed
 
 - Updated go version to 1.24.0

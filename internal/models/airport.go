@@ -13,4 +13,5 @@ type Airport struct {
 	Elevation   float64 `json:"elevation,omitempty" example:"3.35"`  // Elevation in meters
 	IATA        string  `json:"iata,omitempty" example:"SFO"`        // IATA code (3-letter)
 	ICAO        string  `json:"icao,omitempty" example:"KSFO"`       // ICAO code (4-letter)
+	DistanceM   float64 `json:"distance_m,omitempty" example:"1250.5"` // Distance to query anchor (metres); nearby search only
 }

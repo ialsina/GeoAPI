@@ -61,7 +61,8 @@ be disambiguated in this table.
 ### `airports`
 
 OurAirports records keyed by the source numeric ID. Rows include ident, airport
-type, name, ISO alpha-2 country code, municipality, coordinates, elevation in
+type, name, ISO alpha-2 country code, municipality, coordinates, a point
+`geom` (SRID 4326, from migration `003_airports_geom.sql`), elevation in
 metres, IATA code, and ICAO code.
 
 ### `schema_migrations`
@@ -94,8 +95,9 @@ and airports. `scripts/pipeline.sh` enforces this order.
 
 ## Indexes
 
-Spatial GIST indexes exist on the city point geometry and all four boundary
-geometry columns. They support point containment and nearest-neighbour queries.
+Spatial GIST indexes exist on the city point geometry, airport point geometry,
+and all four boundary geometry columns. They support point containment and
+nearest-neighbour queries.
 
 Text and code indexes include:
 

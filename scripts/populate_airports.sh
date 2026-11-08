@@ -51,7 +51,7 @@ WITH (FORMAT csv, HEADER true, DELIMITER ',');
 -- Elevation converted from feet to metres (1 ft = 0.3048 m).
 -- Rows without coordinates are skipped; they cannot be geo-located.
 INSERT INTO airports (id, ident, type, name, country, municipality,
-                      latitude, longitude, elevation, iata, icao)
+                      latitude, longitude, elevation, iata, icao, geom)
 SELECT
     id,
     ident,
@@ -64,7 +64,8 @@ SELECT
     longitude_deg,
     CASE WHEN elevation_ft IS NOT NULL THEN elevation_ft * 0.3048 END,
     UPPER(NULLIF(iata_code, '')),
-    UPPER(NULLIF(icao_code, ''))
+    UPPER(NULLIF(icao_code, '')),
+    ST_SetSRID(ST_MakePoint(longitude_deg, latitude_deg), 4326)
 FROM tmp_airports
 WHERE latitude_deg IS NOT NULL
   AND longitude_deg IS NOT NULL;

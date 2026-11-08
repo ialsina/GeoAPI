@@ -8,6 +8,7 @@ repeatable Bash data pipeline.
 
 - exact and fuzzy city lookup, including alternate names;
 - exact airport-code lookup and fuzzy airport-name search;
+- spatial nearby search for cities (by population) and airports (by distance);
 - country metadata lookup and pagination;
 - city, ADM0, ADM1, and ADM2 boundary queries by city, shape name, country, or
   coordinates;
@@ -54,8 +55,10 @@ options, and service commands.
 | `GET /health` | API and database health |
 | `GET /city` | Retrieve a city by GeoNames ID or name |
 | `GET /cities` | Fuzzy-search city and alternate names |
+| `GET /cities/nearby` | List cities in a bbox or radius, by population |
 | `GET /airport` | Retrieve an airport by ID, ident, code, or name |
 | `GET /airports` | Search airports by name or exact IATA/ICAO code |
+| `GET /airports/nearby` | List airports in a bbox or radius, by distance |
 | `GET /boundary` | Retrieve city, ADM0, ADM1, or ADM2 GeoJSON |
 | `GET /country` | Retrieve country metadata by ISO code |
 | `GET /countries` | List countries with pagination |

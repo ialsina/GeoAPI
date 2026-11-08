@@ -241,21 +241,12 @@ func (h *AirportHandler) SearchAirports(w http.ResponseWriter, r *http.Request) 
 		// Legacy param name for backward compatibility
 		countryCode = query.Get("country_code")
 	}
-	limitStr := query.Get("limit")
 	thresholdStr := query.Get("threshold")
 
-	// Parse limit with defaults
-	limit := 50
-	if limitStr != "" {
-		parsedLimit, err := strconv.Atoi(limitStr)
-		if err != nil || parsedLimit < 1 {
-			http.Error(w, "Invalid 'limit' parameter (must be a positive integer)", http.StatusBadRequest)
-			return
-		}
-		if parsedLimit > 200 {
-			parsedLimit = 200
-		}
-		limit = parsedLimit
+	limit, err := parseLimitQuery(query)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	// Parse similarity threshold (default: 0.2)
@@ -270,7 +261,6 @@ func (h *AirportHandler) SearchAirports(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var rows pgx.Rows
-	var err error
 
 	if name == "" {
 		// Exact code search (IATA/ICAO)
@@ -342,6 +332,113 @@ func (h *AirportHandler) SearchAirports(w http.ResponseWriter, r *http.Request) 
 		airports = append(airports, airport)
 	}
 
+	if err = rows.Err(); err != nil {
+		http.Error(w, "Error processing results", http.StatusInternalServerError)
+		return
+	}
+
+	render.JSON(w, r, map[string]any{
+		"airports": airports,
+		"count":    len(airports),
+	})
+}
+
+// NearbyAirports godoc
+// @Summary      List airports in a region by distance
+// @Description  Return airports within a bounding box or radius, ordered by distance to the query anchor (metres)
+// @Tags         airports
+// @Accept       json
+// @Produce      json
+// @Param        min_lat   query     number  false  "Bounding box minimum latitude"
+// @Param        min_lon   query     number  false  "Bounding box minimum longitude"
+// @Param        max_lat   query     number  false  "Bounding box maximum latitude"
+// @Param        max_lon   query     number  false  "Bounding box maximum longitude"
+// @Param        lat       query     number  false  "Center latitude (with lon, radius)"
+// @Param        lon       query     number  false  "Center longitude (with lat, radius)"
+// @Param        radius    query     number  false  "Search radius in metres (with lat, lon)"
+// @Param        country   query     string  false  "Filter by country code (ISO 2-letter)"
+// @Param        limit     query     int     false  "Maximum number of results (default: 50, max: 200)"
+// @Success      200       {object}  map[string]interface{}  "Response with airports array and count"
+// @Failure      400       {string}  string  "Bad Request - Invalid parameters"
+// @Failure      500       {string}  string  "Internal Server Error"
+// @Router       /airports/nearby [get]
+func (h *AirportHandler) NearbyAirports(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+
+	sq, err := parseSpatialQuery(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var rows pgx.Rows
+	if sq.Mode == spatialModeBBox {
+		rows, err = h.DB.Query(ctx, `
+			SELECT id, ident, type, name, country, municipality,
+			       latitude, longitude, elevation, iata, icao,
+			       ST_Distance(
+			           geom::geography,
+			           ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography
+			       ) AS distance_m
+			FROM airports
+			WHERE geom IS NOT NULL
+			  AND geom && ST_MakeEnvelope($3, $4, $5, $6, 4326)
+			  AND ST_Within(geom, ST_MakeEnvelope($3, $4, $5, $6, 4326))
+			  AND ($7 = '' OR country = $7)
+			ORDER BY distance_m ASC
+			LIMIT $8
+		`, sq.AnchorLon, sq.AnchorLat,
+			sq.MinLon, sq.MinLat, sq.MaxLon, sq.MaxLat,
+			sq.Country, sq.Limit)
+	} else {
+		rows, err = h.DB.Query(ctx, `
+			SELECT id, ident, type, name, country, municipality,
+			       latitude, longitude, elevation, iata, icao,
+			       ST_Distance(
+			           geom::geography,
+			           ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography
+			       ) AS distance_m
+			FROM airports
+			WHERE geom IS NOT NULL
+			  AND ST_DWithin(
+			          geom::geography,
+			          ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
+			          $3
+			      )
+			  AND ($4 = '' OR country = $4)
+			ORDER BY distance_m ASC
+			LIMIT $5
+		`, sq.Lon, sq.Lat, sq.Radius, sq.Country, sq.Limit)
+	}
+	if err != nil {
+		http.Error(w, "Error searching airports", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var airports []models.Airport
+	for rows.Next() {
+		var airport models.Airport
+		err := rows.Scan(
+			&airport.ID,
+			&airport.Ident,
+			&airport.Type,
+			&airport.Name,
+			&airport.Country,
+			&airport.Municipality,
+			&airport.Latitude,
+			&airport.Longitude,
+			&airport.Elevation,
+			&airport.IATA,
+			&airport.ICAO,
+			&airport.DistanceM,
+		)
+		if err != nil {
+			http.Error(w, "Error reading airport data", http.StatusInternalServerError)
+			return
+		}
+		airports = append(airports, airport)
+	}
 	if err = rows.Err(); err != nil {
 		http.Error(w, "Error processing results", http.StatusInternalServerError)
 		return

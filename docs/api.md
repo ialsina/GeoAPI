@@ -13,8 +13,10 @@ UI at <http://localhost:8080/docs/> while the service is running.
 | `GET /health` | Check the API and database connection | none |
 | `GET /city` | Retrieve one city | `geonameid`, or `name` with optional `country` |
 | `GET /cities` | Fuzzy-search cities | `name`, optional `country`, `limit`, `threshold` |
+| `GET /cities/nearby` | Cities in a region by population | bbox (`min_lat`, `min_lon`, `max_lat`, `max_lon`) **or** `lat`, `lon`, `radius` (metres); optional `country`, `limit` |
 | `GET /airport` | Retrieve one airport | `id`, `ident`, `iata`, `icao`, or `name`; optional `country` |
 | `GET /airports` | Search airport names or exact codes | `name`, `iata`, or `icao`; optional `country`, `limit`, `threshold` |
+| `GET /airports/nearby` | Airports in a region by distance | same spatial params as `GET /cities/nearby`; optional `country`, `limit` |
 | `GET /boundary` | Retrieve a city or administrative boundary | `geonameid`, `city`, `name`, `country`, or `lat` and `lon`; optional `type` |
 | `GET /country` | Retrieve one country | `iso2` or `iso3` |
 | `GET /countries` | List countries | optional `limit` and `offset` |
@@ -42,6 +44,35 @@ curl "http://localhost:8080/countries?limit=50&offset=0"
 City and airport search `limit` defaults to 50 and is capped at 200.
 `threshold` defaults to 0.2 and accepts values from 0.0 through 1.0. Country
 listing defaults to 250 rows and is capped at 500.
+
+## Nearby spatial search
+
+`GET /cities/nearby` and `GET /airports/nearby` accept **either** a bounding box
+**or** a center point with radius. Do not combine both modes in one request.
+
+| Mode | Parameters | Notes |
+| --- | --- | --- |
+| Bounding box | `min_lat`, `min_lon`, `max_lat`, `max_lon` | Requires `min_lat` &lt; `max_lat` and `min_lon` &lt; `max_lon`. Each axis span is limited to 10°. Dateline-crossing boxes are not supported. |
+| Center + radius | `lat`, `lon`, `radius` | `radius` is in **metres**, must be positive, and is capped at 500 km. |
+
+Optional `country` (ISO alpha-2, or legacy `country_code`) filters results to one
+country. `limit` defaults to 50 and is capped at 200.
+
+- **Cities** are ordered by `population` descending.
+- **Airports** are ordered by distance to the query anchor ascending. For a
+  bounding box, the anchor is the box centroid; each airport includes
+  `distance_m` (metres). All OurAirports types are included.
+
+```bash
+# Top cities by population in a box (Bay Area-ish)
+curl "http://localhost:8080/cities/nearby?min_lat=37.0&min_lon=-123&max_lat=38.5&max_lon=-121.5&limit=20"
+
+# Top cities within 50 km of Paris
+curl "http://localhost:8080/cities/nearby?lat=48.8566&lon=2.3522&radius=50000&limit=20"
+
+# Airports near SFO
+curl "http://localhost:8080/airports/nearby?lat=37.6213&lon=-122.3790&radius=80000&limit=10"
+```
 
 ## Boundary resolution
 

@@ -195,21 +195,12 @@ func (h *CityHandler) SearchCities(w http.ResponseWriter, r *http.Request) {
 		// Legacy param name for backward compatibility
 		countryCode = query.Get("country_code")
 	}
-	limitStr := query.Get("limit")
 	thresholdStr := query.Get("threshold")
 
-	// Parse limit with defaults
-	limit := 50
-	if limitStr != "" {
-		parsedLimit, err := strconv.Atoi(limitStr)
-		if err != nil || parsedLimit < 1 {
-			http.Error(w, "Invalid 'limit' parameter (must be a positive integer)", http.StatusBadRequest)
-			return
-		}
-		if parsedLimit > 200 {
-			parsedLimit = 200
-		}
-		limit = parsedLimit
+	limit, err := parseLimitQuery(query)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	// Parse similarity threshold (default: 0.2)
@@ -224,7 +215,6 @@ func (h *CityHandler) SearchCities(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var rows pgx.Rows
-	var err error
 
 	// Build query using fuzzy matching with trigram similarity.
 	// Searches name, asciiname, and alternate names.  Results are deduplicated
@@ -325,6 +315,96 @@ func (h *CityHandler) SearchCities(w http.ResponseWriter, r *http.Request) {
 		cities = append(cities, city)
 	}
 
+	if err = rows.Err(); err != nil {
+		http.Error(w, "Error processing results", http.StatusInternalServerError)
+		return
+	}
+
+	render.JSON(w, r, map[string]any{
+		"cities": cities,
+		"count":  len(cities),
+	})
+}
+
+// NearbyCities godoc
+// @Summary      List cities in a region by population
+// @Description  Return cities within a bounding box or radius, ordered by population (descending)
+// @Tags         cities
+// @Accept       json
+// @Produce      json
+// @Param        min_lat   query     number  false  "Bounding box minimum latitude"
+// @Param        min_lon   query     number  false  "Bounding box minimum longitude"
+// @Param        max_lat   query     number  false  "Bounding box maximum latitude"
+// @Param        max_lon   query     number  false  "Bounding box maximum longitude"
+// @Param        lat       query     number  false  "Center latitude (with lon, radius)"
+// @Param        lon       query     number  false  "Center longitude (with lat, radius)"
+// @Param        radius    query     number  false  "Search radius in metres (with lat, lon)"
+// @Param        country   query     string  false  "Filter by country code (ISO 2-letter)"
+// @Param        limit     query     int     false  "Maximum number of results (default: 50, max: 200)"
+// @Success      200       {object}  map[string]interface{}  "Response with cities array and count"
+// @Failure      400       {string}  string  "Bad Request - Invalid parameters"
+// @Failure      500       {string}  string  "Internal Server Error"
+// @Router       /cities/nearby [get]
+func (h *CityHandler) NearbyCities(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+
+	sq, err := parseSpatialQuery(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var rows pgx.Rows
+	if sq.Mode == spatialModeBBox {
+		rows, err = h.DB.Query(ctx, `
+			SELECT geonameid, name, asciiname, country, population,
+			       ST_Y(geom) AS lat, ST_X(geom) AS lon
+			FROM cities_1000
+			WHERE geom && ST_MakeEnvelope($1, $2, $3, $4, 4326)
+			  AND ST_Within(geom, ST_MakeEnvelope($1, $2, $3, $4, 4326))
+			  AND ($5 = '' OR country = $5)
+			ORDER BY population DESC
+			LIMIT $6
+		`, sq.MinLon, sq.MinLat, sq.MaxLon, sq.MaxLat, sq.Country, sq.Limit)
+	} else {
+		rows, err = h.DB.Query(ctx, `
+			SELECT geonameid, name, asciiname, country, population,
+			       ST_Y(geom) AS lat, ST_X(geom) AS lon
+			FROM cities_1000
+			WHERE ST_DWithin(
+			          geom::geography,
+			          ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
+			          $3
+			      )
+			  AND ($4 = '' OR country = $4)
+			ORDER BY population DESC
+			LIMIT $5
+		`, sq.Lon, sq.Lat, sq.Radius, sq.Country, sq.Limit)
+	}
+	if err != nil {
+		http.Error(w, "Error searching cities", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var cities []models.City
+	for rows.Next() {
+		var city models.City
+		err := rows.Scan(
+			&city.GeonameID,
+			&city.Name,
+			&city.AsciiName,
+			&city.Country,
+			&city.Population,
+			&city.Latitude,
+			&city.Longitude,
+		)
+		if err != nil {
+			http.Error(w, "Error reading city data", http.StatusInternalServerError)
+			return
+		}
+		cities = append(cities, city)
+	}
 	if err = rows.Err(); err != nil {
 		http.Error(w, "Error processing results", http.StatusInternalServerError)
 		return
