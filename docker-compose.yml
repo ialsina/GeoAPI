@@ -19,7 +19,7 @@ services:
       start_period: 10s
 
   api:
-    image: ${CI_REGISTRY_IMAGE:-${REGISTRY_IMAGE:-geoapi}}/api:${IMAGE_TAG:-latest}
+    image: ialsina/geoapi:${IMAGE_TAG:-latest}
     build: .
     container_name: geoapi-api
     environment:

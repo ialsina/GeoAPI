@@ -23,6 +23,8 @@ Pre-release versions are not listed separately.
   4-letter codes) and comma-separated `keywords` in OurAirports `airports.csv`.
 - Updated go version to 1.24.0
 - Updated to submodule `ourairports-data` commit `64af129`.
+- `docker-compose.yml` default API image is now `ialsina/geoapi` (still overridable
+  via `IMAGE_TAG`); replaces the former `CI_REGISTRY_IMAGE` and `REGISTRY_IMAGE`.
 
 
 ## [0.4.0] - 2026-09-28

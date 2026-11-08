@@ -105,15 +105,10 @@ Compose passes the API this database URL:
 postgres://geouser:geopass@db:5432/geodb
 ```
 
-The API image name is assembled from these Compose substitutions:
-
-- `CI_REGISTRY_IMAGE`, when supplied by GitLab CI;
-- otherwise `REGISTRY_IMAGE`, commonly set in a local `.env`;
-- otherwise `geoapi`;
-- `IMAGE_TAG`, defaulting to `latest`.
-
-Copy `.env.example` to `.env` and replace its placeholder registry path when a
-registry-qualified image name is needed. `.env` is ignored by Git.
+The API service uses the published image `ialsina/geoapi:${IMAGE_TAG:-latest}`.
+Compose also declares `build: .`, so `docker compose up --build` builds and tags
+that name locally. Set `IMAGE_TAG` in a `.env` file (see `.env.example`) to pin a
+specific tag instead of `latest`. `.env` is ignored by Git.
 
 The Compose credentials are development defaults. For deployment, provide
 managed secrets, restrict database exposure, put TLS and request controls in a
