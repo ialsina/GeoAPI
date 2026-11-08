@@ -2,6 +2,9 @@
 # See https://pre-commit.com            for more information
 # See https://pre-commit.com/hooks.html for more hooks
 # ==============================================================================
+default_language_version:
+  golang: "1.24.0"
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v2.0.0
@@ -34,32 +37,11 @@ repos:
         types: [file]
         # Use write mode (-w) so this hook behaves like other auto-fixers
         args: [ '-i', '0', '-ci', '-sr', '-kp', '-w' ]
-
-    # ==========================================================================
-    # Golang Pre-Commit Hooks | https://github.com/tekwizely/pre-commit-golang
-    #
-    # !! ALL Hooks enabled by default - Comment out hooks you are not using
-    #
-    # Visit the project home page to learn more about the available Hooks,
-    # including useful arguments you might want to pass into them.
-    #
-    # NOTE: When passing options to hooks, if your options contain a reference
-    #       to an existing file, then you will need to use a trailing '--'
-    #       argument to separate the hook options from the modified-file list
-    #       that Pre-Commit passes into the hook.
-    #       For repo-based hooks, '--' is not needed.
-    #
-    # NOTE: You can pass environment variables to hooks using args with the
-    #       following format:
-    #
-    #           --hook:env:NAME=VALUE
-    #
-    # Consider adding aliases to longer-named hooks for easier CLI usage.
-    # ==========================================================================
-  - repo: https://github.com/tekwizely/pre-commit-golang
-    rev: v1.0.0-rc.4
-    hooks:
-
-      # Code hygiene / formatting
+      # Uses pre-commit's Go toolchain (see default_language_version), not host `go`.
       - id: go-mod-tidy
-      - id: go-mod-tidy-repo
+        name: go mod tidy
+        entry: go mod tidy
+        language: golang
+        language_version: "1.24.0"
+        pass_filenames: false
+        files: '(go\.mod|go\.sum|.*\.go)$'

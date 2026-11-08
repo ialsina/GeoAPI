@@ -73,7 +73,8 @@ pre-commit run --all-files
 ```
 
 Its hooks check basic file hygiene and YAML, run `shellcheck` and `shfmt` on
-shell scripts, and run Go module tidy checks. Install `pre-commit`,
+shell scripts, and run `go mod tidy` using the Go version pinned in
+`.pre-commit-config.yaml` (not the host `go`). Install `pre-commit`,
 `shellcheck`, and `shfmt` on the host before using all hooks. Run `gofmt` on Go
 changes.
 

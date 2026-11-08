@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Pre-release versions are not listed separately.
 
+## [Unreleased]
+
+### Changed
+
+- Updated go version to 1.24.0
+
 ## [0.4.0] - 2026-09-28
 
 ### Added
